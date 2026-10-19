@@ -1,0 +1,24 @@
+# Secrets: never commit
+.env
+*.pem
+*service-account*.json
+gcp-key*.json
+
+# Trial data, backups, logs, schedules generated on the trial machine
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

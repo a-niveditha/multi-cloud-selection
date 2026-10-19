@@ -1,0 +1,25 @@
+# Lower bounds only for development. Before the real trials, run
+#   pip freeze > requirements-lock.txt
+# on the trial machine and commit that file with the release tag.
+
+# Config and environment
+PyYAML>=6.0
+python-dotenv>=1.0
+
+# Cloud SDKs (used from Stage 3)
+boto3>=1.34
+google-cloud-storage>=2.16
+b2sdk>=2.5
+
+# Probing (used from Stage 3)
+ping3>=4.0
+requests>=2.31
+
+# Analysis (used from Stage 5)
+pandas>=2.2
+numpy>=1.26
+scipy>=1.12
+matplotlib>=3.8
+
+# Tests
+pytest>=8.0
