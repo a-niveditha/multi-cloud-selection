@@ -41,7 +41,7 @@ class S3Provider(StorageProvider):
         ))  # credentials: AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY from the environment
         return cls(name, os.environ[pcfg["bucket_env"]], client, clock)
 
-    def put_object(self, file: LocalFile, key: str, timeout_s: float) -> None:
+    def put_object(self, file: LocalFile, key: str, timeout_s: float, overwrite: bool = False) -> None:
         with open(file.path, "rb") as body:
             self.client.put_object(Bucket=self.bucket, Key=key, Body=body, ContentMD5=file.md5_b64)
 

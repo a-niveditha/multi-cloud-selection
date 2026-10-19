@@ -1,7 +1,8 @@
 """Google Cloud Storage adapter (google-cloud-storage).
 
 Upload: Blob.upload_from_filename with SDK retries off. if_generation_match=0 makes
-the upload fail rather than overwrite an existing object.
+the upload fail rather than overwrite an existing object (except the throughput
+probe, which reuses its key with overwrite=True).
 Verify: get_blob (metadata only, no download) and compare blob.md5_hash (base64)
 with the local MD5.
 
@@ -37,10 +38,10 @@ class GCSProvider(StorageProvider):
         bucket = client.bucket(os.environ[pcfg["bucket_env"]])
         return cls(name, bucket, (tcfg["sdk_connect_timeout_s"], tcfg["sdk_read_timeout_s"]), clock)
 
-    def put_object(self, file: LocalFile, key: str, timeout_s: float) -> None:
+    def put_object(self, file: LocalFile, key: str, timeout_s: float, overwrite: bool = False) -> None:
         blob = self.bucket.blob(key)
         blob.upload_from_filename(file.path, timeout=self.sdk_timeout, retry=None, checksum=None,
-                                  if_generation_match=0)
+                                  if_generation_match=None if overwrite else 0)
 
     def verify(self, file: LocalFile, key: str) -> bool:
         blob = self.bucket.get_blob(key, timeout=self.sdk_timeout, retry=None)

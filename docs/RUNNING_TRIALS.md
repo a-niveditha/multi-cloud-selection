@@ -10,6 +10,10 @@ your machine the first time, then about 15–30 minutes per block.
 3. Never edit code, `config/config.yaml` or anything in `data/`.
 4. Never commit or send your `.env` file or keys to anyone or anywhere.
 5. If something looks wrong, **stop and post in the group**. Don't improvise.
+6. Running at the same time as someone else is fine **only** on a different machine
+   **and** a different internet connection. Two people on the same Wi-Fi (same
+   home, hostel or lab network) must take turns, or they slow each other down and
+   spoil both blocks. Before you start, post "starting B04" in the group.
 
 ---
 
@@ -170,6 +174,8 @@ Before anyone runs a real block:
 3. Commit, then `git tag trials-v1 && git push origin main trials-v1`.
 4. Post the payload `md5` (from `make_payload.py`) in the group.
 5. Give each person their own cloud keys, limited to the trial buckets, privately.
+   On the B2 bucket, set the lifecycle rule to "Keep only the last version", because
+   each throughput probe overwrites its per-machine object and B2 keeps old versions.
 6. Fill in the block table above. Spread natural, mild and severe blocks across people and days.
 7. To analyse everyone's data together:
    `python scripts/analyse.py --db harini.sqlite siva.sqlite mathu.sqlite niveditha.sqlite`

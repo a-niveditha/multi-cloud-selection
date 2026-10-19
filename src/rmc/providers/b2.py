@@ -38,7 +38,7 @@ class B2Provider(StorageProvider):
         api.services.upload_manager.MAX_UPLOAD_ATTEMPTS = 1
         return cls(name, api.get_bucket_by_name(os.environ[pcfg["bucket_env"]]), clock)
 
-    def put_object(self, file: LocalFile, key: str, timeout_s: float) -> None:
+    def put_object(self, file: LocalFile, key: str, timeout_s: float, overwrite: bool = False) -> None:
         self.bucket.upload_local_file(local_file=file.path, file_name=key, sha1_sum=file.sha1_hex)
 
     def verify(self, file: LocalFile, key: str) -> bool:

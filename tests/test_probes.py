@@ -83,3 +83,11 @@ def test_probe_all_and_calibrate_with_mocks(cfg, tmp_path):
     save_baseline(path, baseline)
     with pytest.raises(FileExistsError):
         save_baseline(path, baseline)
+
+
+def test_repeated_probes_reuse_their_key_without_failing(cfg, payload, local_server, monkeypatch):
+    """Regression: the probe reuses one key; providers that refuse overwrites must not break it."""
+    monkeypatch.setenv("RMC_MACHINE_ID", "laptop-a")
+    prober, _ = make_prober(cfg, payload, local_server)
+    assert prober.probe_key == "rmc-probe/laptop-a.bin"
+    assert all(prober.probe("gcs").ok for _ in range(3))

@@ -2,6 +2,7 @@
 
 Tick every line. If anything is unexpected, **stop and write it in the lab log** rather than improvising.
 One person runs one block at a time on one machine. Never split a block across machines.
+Blocks may run in parallel only on different machines on different internet connections.
 
 ## A. Once, before any real trial (whole team)
 

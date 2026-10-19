@@ -91,7 +91,9 @@ class MockProvider(StorageProvider):
         eff_mbps = self.base.throughput_mbps * (1 - min(0.9, LOSS_SENSITIVITY * self.loss_pct / 100))
         return 3 * self.rtt_ms / 1000 + size_bytes * 8 / (eff_mbps * 1e6)
 
-    def put_object(self, file: LocalFile, key: str, timeout_s: float) -> None:
+    def put_object(self, file: LocalFile, key: str, timeout_s: float, overwrite: bool = False) -> None:
+        if not overwrite and key in self._stored:   # strictest provider behaviour (GCS precondition)
+            raise FileExistsError(f"mock {self.name}: {key} exists and overwrite=False")
         if self._scripted:
             outcome = self._scripted.pop(0)
         else:

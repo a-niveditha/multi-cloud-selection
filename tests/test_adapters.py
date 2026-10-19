@@ -14,7 +14,7 @@ from rmc.providers.s3 import S3Provider
 class SlowProvider(StorageProvider):
     enforce_deadline = True
 
-    def put_object(self, file, key, timeout_s):
+    def put_object(self, file, key, timeout_s, overwrite=False):
         time.sleep(1.0)               # ignores timeout_s, like a hung SDK call
 
     def verify(self, file, key):
@@ -22,7 +22,7 @@ class SlowProvider(StorageProvider):
 
 
 class BrokenProvider(SlowProvider):
-    def put_object(self, file, key, timeout_s):
+    def put_object(self, file, key, timeout_s, overwrite=False):
         raise ConnectionResetError("reset by peer")
 
 
@@ -121,3 +121,26 @@ def test_b2_upload_sends_sha1_and_verifies(payload):
 def test_b2_sha1_mismatch_fails(payload):
     r = B2Provider("b2", FakeB2Bucket(sha1="0" * 40)).upload(payload, "k1", timeout_s=5)
     assert r.success and r.verified is False
+
+
+class StrictGCSBucket(FakeGCSBucket):
+    """Like real GCS: if_generation_match=0 fails when the object already exists."""
+
+    def blob(self, key):
+        inner, bucket = super().blob(key), self
+
+        class Blob:
+            def upload_from_filename(self, filename, **kw):
+                if kw.get("if_generation_match") == 0 and key in bucket.stored:
+                    raise RuntimeError("412 Precondition Failed")
+                inner.upload_from_filename(filename, **kw)
+        return Blob()
+
+
+def test_gcs_trial_upload_never_overwrites_but_probe_can(payload):
+    gcs = GCSProvider("gcs", StrictGCSBucket(md5_b64=payload.md5_b64))
+    assert gcs.upload(payload, "trial-key", timeout_s=5).ok
+    again = gcs.upload(payload, "trial-key", timeout_s=5)
+    assert not again.success and "412" in again.error
+    gcs.put_with_deadline(payload, "probe-key", 5, overwrite=True)
+    gcs.put_with_deadline(payload, "probe-key", 5, overwrite=True)      # repeated probes must work

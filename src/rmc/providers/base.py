@@ -1,7 +1,10 @@
 """Common interface for storage providers (S3, GCS, B2, mock).
 
 An adapter implements only the SDK-specific methods:
-  put_object(file, key, timeout_s)  upload; raise TimeoutError on timeout, any other exception on failure
+  put_object(file, key, timeout_s, overwrite)
+                                    upload; raise TimeoutError on timeout, any other exception on failure.
+                                    Trial uploads use overwrite=False (unique keys); only the
+                                    throughput probe reuses its key and passes overwrite=True.
   verify(file, key) -> bool         compare the provider's stored checksum/ETag with the local one,
                                     WITHOUT downloading the object
   delete_object(key)                remove an uploaded object (cleanup, never timed)
@@ -34,7 +37,7 @@ class StorageProvider(ABC):
         self.clock = clock or RealClock()
 
     @abstractmethod
-    def put_object(self, file: LocalFile, key: str, timeout_s: float) -> None: ...
+    def put_object(self, file: LocalFile, key: str, timeout_s: float, overwrite: bool = False) -> None: ...
 
     @abstractmethod
     def verify(self, file: LocalFile, key: str) -> bool: ...
@@ -42,16 +45,16 @@ class StorageProvider(ABC):
     def delete_object(self, key: str) -> None:
         raise NotImplementedError
 
-    def put_with_deadline(self, file: LocalFile, key: str, timeout_s: float) -> None:
+    def put_with_deadline(self, file: LocalFile, key: str, timeout_s: float, overwrite: bool = False) -> None:
         """put_object, but raise TimeoutError after timeout_s even if the SDK hangs."""
         if not self.enforce_deadline:
-            self.put_object(file, key, timeout_s)
+            self.put_object(file, key, timeout_s, overwrite)
             return
         outcome: dict = {}
 
         def work():
             try:
-                self.put_object(file, key, timeout_s)
+                self.put_object(file, key, timeout_s, overwrite)
                 outcome["ok"] = True
             except BaseException as e:   # passed back to the caller below
                 outcome["error"] = e

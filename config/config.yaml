@@ -86,12 +86,13 @@ probe:
   # takes longer than this is counted as lost. Must stay above the worst expected
   # RTT under "severe" (e.g. natural 300 ms x 2 = 600 ms). TODO: check in calibration.
   sample_timeout_s: 0.9
-  # Throughput: time a small upload of this file (overwritten each probe, same key).
+  # Throughput: time a small upload of this file to <object_key_prefix>/<machine id>.bin
+  # (the same key every time, overwritten).
   # Only small_upload is implemented. TODO: confirm the size.
   throughput_method: small_upload
   throughput_bytes: 524288         # 512 KiB
   payload_path: data/probe_512KiB.bin   # created by scripts/make_payload.py
-  object_key: rmc-probe/probe.bin
+  object_key_prefix: rmc-probe
   timeout_s: 10                    # TODO: per-provider throughput-probe timeout
   calibration_samples: 20          # probes per provider for the natural baseline
 

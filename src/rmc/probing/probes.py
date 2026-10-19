@@ -11,8 +11,9 @@ RTT and loss (one batch of `probe.samples` attempts to the provider's endpoint):
   "no loss" from "heavy loss" - it cannot measure 1 % loss. Treat it as coarse.
 
 Throughput: time an upload of a small file (512 KiB by default) to the provider,
-always to the same key (it overwrites itself). Includes connection set-up, so it
-underestimates bulk throughput; it is meant for comparing providers, not as a
+always to the same per-machine key (<object_key_prefix>/<machine id>.bin), which it
+overwrites, so probes do not pile up and two machines never write the same key.
+Includes connection set-up, so it underestimates bulk throughput; it is meant for comparing providers, not as a
 true bandwidth figure.
 
 The endpoint's IP is resolved once per probe, outside the timed part.
@@ -28,6 +29,7 @@ from statistics import median
 from rmc.config import REPO_ROOT
 from rmc.models import LocalFile, ProbeResult
 from rmc.providers.base import StorageProvider
+from rmc.runinfo import machine_id
 
 
 def resolve_ipv4(host: str, port: int) -> str:
@@ -66,6 +68,7 @@ class NetworkProber:
         self.pcfg = cfg["probe"]
         self.providers = providers
         self.hosts = hosts or {n: p["endpoint_host"] for n, p in cfg["providers"].items()}
+        self.probe_key = f"{self.pcfg['object_key_prefix']}/{machine_id()}.bin"
         self.probe_file = probe_file or LocalFile.from_path(REPO_ROOT / self.pcfg["payload_path"])
         if self.pcfg["throughput_method"] != "small_upload":
             raise NotImplementedError(f"throughput_method {self.pcfg['throughput_method']!r}")
@@ -85,7 +88,7 @@ class NetworkProber:
     def _throughput_mbps(self, name: str) -> float:
         provider = self.providers[name]
         start = time.perf_counter()
-        provider.put_with_deadline(self.probe_file, self.pcfg["object_key"], self.pcfg["timeout_s"])
+        provider.put_with_deadline(self.probe_file, self.probe_key, self.pcfg["timeout_s"], overwrite=True)
         elapsed = max(time.perf_counter() - start, 1e-9)
         return self.probe_file.size_bytes * 8 / elapsed / 1e6
 
