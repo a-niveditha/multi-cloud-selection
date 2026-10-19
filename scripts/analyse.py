@@ -20,7 +20,7 @@ from rmc.analysis.load import load_many  # noqa: E402
 from rmc.config import REPO_ROOT, load_config  # noqa: E402
 
 
-def run(dbs: list[Path], out: Path, acfg: dict, include_pilot: bool) -> Path:
+def run(dbs: list[Path], out: Path, acfg: dict, include_pilot: bool, note: str | None = None) -> Path:
     df = load_many(dbs, include_pilot=include_pilot)
     if df.empty:
         raise SystemExit("no complete rounds found (pilot/mock data needs --include-pilot)")
@@ -42,7 +42,7 @@ def run(dbs: list[Path], out: Path, acfg: dict, include_pilot: bool) -> Path:
     pd.set_option("display.width", 200)
     pd.set_option("display.max_columns", 30)
     m = stats.measured(df)
-    lines = [
+    lines = ([note, ""] if note else []) + [
         f"Analysis of {[str(d) for d in dbs]}  ({datetime.now(timezone.utc):%Y-%m-%d %H:%M UTC})",
         f"Transfers: {len(df)} ({len(m)} measured, {len(df) - len(m)} warm-up); "
         f"blocks: {df['block_id'].nunique()}; machines: {sorted(df['machine_id'].unique())}; "

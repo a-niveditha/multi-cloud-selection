@@ -64,3 +64,34 @@ def test_probe_returns_values(cfg):
     m = MockProvider.from_config(cfg)["gcs"]
     r = m.probe()
     assert r.ok and r.rtt_ms > 0 and r.throughput_mbps > 0 and r.probe_time_s > 0
+
+
+def test_loss_raises_failure_probability(payload):
+    def failures(**kw):
+        p = make(loss_fail_per_pct=0.05, **kw)
+        return sum(not p.upload(payload, f"k{i}", 60).success for i in range(400))
+    assert failures(loss_pct=0.0) == 0
+    assert failures(loss_pct=5.0) > 100          # 5 % loss -> +25 % timeout and +25 % failure
+
+
+def test_congestion_episode_slows_transfers(payload):
+    p = make(episode_rate_per_hour=3600, episode_mean_s=1e9, episode_slowdown=4.0)
+    normal = p.expected_transfer_time_s(payload.size_bytes)
+    p.clock.sleep(100)                           # ~100 expected entries, practically certain
+    p.probe()
+    assert p.in_episode
+    assert p.throughput_mbps == 10 / 4.0
+    assert p.expected_transfer_time_s(payload.size_bytes) > normal
+
+
+def test_episodes_off_by_default_keep_rng_stream(payload):
+    p = make()
+    p.clock.sleep(10_000)
+    p.probe()
+    assert not p.in_episode and p.throughput_mbps == 10
+
+
+def test_simulation_section_builds_all_providers(cfg):
+    sims = MockProvider.from_config(cfg, section="simulation", seed=1)
+    assert list(sims) == list(cfg["providers"])
+    assert all(s.base.episode_rate_per_hour > 0 for s in sims.values())

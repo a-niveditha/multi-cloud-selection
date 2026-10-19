@@ -55,13 +55,13 @@ We are testing, not assuming, that this improves transfer performance and reliab
 │   ├── config.py
 │   ├── db.py               # SQLite schema and helpers
 │   ├── models.py           # probe/upload result data classes
-│   ├── providers/          # base, aws_s3, gcs, b2, mock
+│   ├── providers/          # base, aws_s3, gcs, b2, mock (also used for simulation)
 │   ├── probing/            # RTT, throughput, packet-loss probes
 │   ├── selection/          # normalisation, risk, adaptive weights, strategies
 │   ├── netem/              # apply/clear tc/netem rules (with dry-run)
 │   ├── runner/             # schedule, block runner, verification
 │   └── analysis/           # statistics and plots
-├── scripts/                # generate_schedule, run_block, check_block, export_data
+├── scripts/                # generate_schedule, run_block, check_block, export_data, run_simulation
 ├── tests/                  # pytest
 ├── data/                   # trial databases and logs (not committed)
 └── docs/
@@ -73,6 +73,7 @@ We are testing, not assuming, that this improves transfer performance and reliab
 **Software:** Python 3, boto3, google-cloud-storage, b2sdk, ping3 and/or custom HTTP probes, SQLite, Pandas, NumPy, SciPy, Matplotlib/Plotly, pytest, Git. An optional Flask/FastAPI REST layer is low priority. TLS is used for transport.
 
 **Hardware (minimum):** Intel i5 / AMD Ryzen 5 or equivalent, 8 GB RAM, 50 GB free storage, stable broadband, native Ubuntu or an Ubuntu VM (needed for `tc`/`netem`), and accounts for AWS S3, Google Cloud Storage and Backblaze B2.
+None of the hardware/account requirements beyond Python apply to simulation mode (below).
 
 ## Setup
 
@@ -99,7 +100,30 @@ All tunable values live in `config/config.yaml`. Items still to be decided are m
 
 **Freeze the configuration and tag the release in Git before the real trials. Do not change it afterwards.**
 
-## Running
+## Simulation mode (no cloud accounts, no Ubuntu)
+
+The whole experiment can be run in a **simulated multi-cloud environment** on any OS
+(Windows included), with no cloud accounts, credentials, buckets, VM or `tc`/`netem`:
+
+```bash
+pip install -r requirements.txt
+python scripts/run_simulation.py                              # seed from config
+python scripts/run_simulation.py --seed 7 --rounds-per-condition 30
+```
+
+It replaces only the cloud uploads and the network: the three providers are simulated
+from the profiles under `simulation:` in `config/config.yaml` (RTT, throughput, loss,
+jitter, failure/timeout rates, loss-driven failures and random congestion episodes),
+and the mild/severe conditions are applied to the simulated paths. The selection
+strategies, risk history, adaptive weights, failover, database and analysis are the
+same code as in the real trials. Time is simulated, so a full run takes seconds.
+
+Output goes to `data/simulation/seed<N>/` (database, schedule, and `analysis/` with
+`summary.txt`, CSV tables and figures). The provider profiles are **assumptions, not
+measurements**: report these as simulation results, state the profiles and the seed,
+and do not tune the profiles after looking at which strategy wins.
+
+## Running real trials
 
 Team members running trials: follow **[docs/RUNNING_TRIALS.md](docs/RUNNING_TRIALS.md)** step by step.
 The full checklist is in [docs/operator_checklist.md](docs/operator_checklist.md).

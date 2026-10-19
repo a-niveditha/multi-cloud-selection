@@ -206,6 +206,25 @@ mock:
     gcs:    {rtt_ms: 150, throughput_mbps: 40, loss_pct: 0.1, failure_prob: 0.01, timeout_prob: 0.01, jitter_cv: 0.10}
     b2:     {rtt_ms: 250, throughput_mbps: 30, loss_pct: 0.2, failure_prob: 0.02, timeout_prob: 0.01, jitter_cv: 0.15}
 
+simulation:
+  # Simulated multi-cloud environment used by scripts/run_simulation.py.
+  # These are ASSUMED provider profiles (rough orders of magnitude for a client in
+  # India uploading to Mumbai / Belgium / US-West), NOT measurements. Report any
+  # results from them as simulation results and state these values in the report.
+  # Netem conditions (mild/severe) are applied to the simulated paths exactly as
+  # configured under netem.conditions.
+  seed: 2026
+  providers:
+    aws_s3: {rtt_ms: 35,  throughput_mbps: 40, loss_pct: 0.1, failure_prob: 0.01,  timeout_prob: 0.005,
+             jitter_cv: 0.20, loss_fail_per_pct: 0.02,
+             episode_rate_per_hour: 3, episode_mean_s: 90, episode_slowdown: 3.0, episode_extra_fail: 0.15}
+    gcs:    {rtt_ms: 140, throughput_mbps: 30, loss_pct: 0.2, failure_prob: 0.01,  timeout_prob: 0.005,
+             jitter_cv: 0.25, loss_fail_per_pct: 0.02,
+             episode_rate_per_hour: 3, episode_mean_s: 90, episode_slowdown: 3.0, episode_extra_fail: 0.15}
+    b2:     {rtt_ms: 240, throughput_mbps: 20, loss_pct: 0.3, failure_prob: 0.02,  timeout_prob: 0.01,
+             jitter_cv: 0.30, loss_fail_per_pct: 0.02,
+             episode_rate_per_hour: 3, episode_mean_s: 90, episode_slowdown: 3.0, episode_extra_fail: 0.15}
+
 analysis:
   # DECIDE ALL OF THESE BEFORE LOOKING AT REAL RESULTS, and write them in the report.
   metric: end_to_end_time_s

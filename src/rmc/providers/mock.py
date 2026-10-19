@@ -7,6 +7,15 @@ The performance model is a deliberately simple TOY, not a TCP model:
 where jitter is log-normal with the configured coefficient of variation and
 3 * RTT stands for TCP + TLS + request set-up. All parameters are made up.
 
+Two optional effects (both off by default) make the simulation less idealised:
+  - loss_fail_per_pct: each 1 % of current packet loss adds this much to both the
+    failure and the timeout probability (degraded paths fail more often);
+  - congestion episodes: a two-state on/off process in simulated time. A provider
+    enters an episode at `episode_rate_per_hour` and stays in it for an
+    exponentially distributed time with mean `episode_mean_s`. During an episode
+    its throughput is divided by `episode_slowdown` and `episode_extra_fail` is
+    added to its failure probability. Probes see the slowdown too.
+
 With a SimClock (default) nothing actually sleeps; with a RealClock the mock
 sleeps for the simulated time (useful for a realistic dry run of the runner).
 """
@@ -31,6 +40,11 @@ class MockNetwork:
     failure_prob: float = 0.0     # chance an upload fails with an error
     timeout_prob: float = 0.0     # chance an upload hangs until the timeout
     jitter_cv: float = 0.0        # variability of transfer and probe times
+    loss_fail_per_pct: float = 0.0    # extra failure and timeout probability per 1 % loss
+    episode_rate_per_hour: float = 0.0
+    episode_mean_s: float = 60.0
+    episode_slowdown: float = 1.0
+    episode_extra_fail: float = 0.0
 
 
 class MockProvider(StorageProvider):
@@ -42,15 +56,19 @@ class MockProvider(StorageProvider):
         self._rtt_factor = 1.0
         self._extra_loss_pct = 0.0
         self._scripted: list[str] = []              # forced outcomes: "ok" | "fail" | "timeout" | "corrupt"
+        self.in_episode = False
+        self._episode_checked_at = self.clock.now()
 
     @classmethod
-    def from_config(cls, cfg: dict, clock=None) -> dict[str, "MockProvider"]:
-        """Build one mock per provider from cfg['mock']. Shares one clock across providers."""
+    def from_config(cls, cfg: dict, clock=None, section: str = "mock",
+                    seed: int | None = None) -> dict[str, "MockProvider"]:
+        """Build one mock per provider from cfg[section] ('mock' for tests, 'simulation'
+        for simulation runs). Shares one clock across providers."""
         clock = clock or SimClock()
-        seed = cfg["mock"]["seed"]
+        seed = cfg[section]["seed"] if seed is None else seed
         return {
             name: cls(name, MockNetwork(**params), seed=seed + i, clock=clock)
-            for i, (name, params) in enumerate(cfg["mock"]["providers"].items())
+            for i, (name, params) in enumerate(cfg[section]["providers"].items())
         }
 
     # ---- netem-like degradation ---------------------------------------------
@@ -79,6 +97,26 @@ class MockProvider(StorageProvider):
         self._scripted.extend(outcomes)
 
     # ---- simulation ---------------------------------------------------------
+    def _update_episode(self) -> None:
+        """Advance the on/off congestion process to the current simulated time."""
+        if self.base.episode_rate_per_hour <= 0:
+            return
+        now = self.clock.now()
+        dt, self._episode_checked_at = now - self._episode_checked_at, now
+        if dt <= 0:
+            return
+        if self.in_episode:
+            p_change = 1 - math.exp(-dt / self.base.episode_mean_s)
+        else:
+            p_change = 1 - math.exp(-dt * self.base.episode_rate_per_hour / 3600)
+        if self.rng.random() < p_change:
+            self.in_episode = not self.in_episode
+
+    @property
+    def throughput_mbps(self) -> float:
+        slowdown = self.base.episode_slowdown if self.in_episode else 1.0
+        return self.base.throughput_mbps / slowdown
+
     def _jitter(self) -> float:
         cv = self.base.jitter_cv
         if cv <= 0:
@@ -88,19 +126,23 @@ class MockProvider(StorageProvider):
 
     def expected_transfer_time_s(self, size_bytes: int) -> float:
         """Transfer time without jitter (for tests and sanity checks)."""
-        eff_mbps = self.base.throughput_mbps * (1 - min(0.9, LOSS_SENSITIVITY * self.loss_pct / 100))
+        eff_mbps = self.throughput_mbps * (1 - min(0.9, LOSS_SENSITIVITY * self.loss_pct / 100))
         return 3 * self.rtt_ms / 1000 + size_bytes * 8 / (eff_mbps * 1e6)
 
     def put_object(self, file: LocalFile, key: str, timeout_s: float, overwrite: bool = False) -> None:
         if not overwrite and key in self._stored:   # strictest provider behaviour (GCS precondition)
             raise FileExistsError(f"mock {self.name}: {key} exists and overwrite=False")
+        self._update_episode()
         if self._scripted:
             outcome = self._scripted.pop(0)
         else:
+            from_loss = self.base.loss_fail_per_pct * self.loss_pct
+            timeout_p = self.base.timeout_prob + from_loss
+            failure_p = self.base.failure_prob + from_loss + (self.base.episode_extra_fail if self.in_episode else 0.0)
             r = self.rng.random()
-            if r < self.base.timeout_prob:
+            if r < timeout_p:
                 outcome = "timeout"
-            elif r < self.base.timeout_prob + self.base.failure_prob:
+            elif r < timeout_p + failure_p:
                 outcome = "fail"
             else:
                 outcome = "ok"
@@ -124,9 +166,10 @@ class MockProvider(StorageProvider):
 
     def probe(self, timeout_s: float = 10.0) -> ProbeResult:
         """Simulated probe (the real probes live in rmc.probing, Stage 3)."""
+        self._update_episode()
         rtt = self.rtt_ms * self._jitter()
         loss = max(0.0, self.loss_pct * self._jitter())
-        thr = self.base.throughput_mbps * (1 - min(0.9, LOSS_SENSITIVITY * loss / 100)) * self._jitter()
+        thr = self.throughput_mbps * (1 - min(0.9, LOSS_SENSITIVITY * loss / 100)) * self._jitter()
         probe_time = min(timeout_s, 8 * rtt / 1000)
         self.clock.sleep(probe_time)
         return ProbeResult(provider=self.name, rtt_ms=rtt, throughput_mbps=thr, loss_pct=loss,
