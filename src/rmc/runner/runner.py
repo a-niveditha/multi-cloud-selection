@@ -5,6 +5,13 @@
                             round not yet completed, clears netem and backs up the
                             database at the end - also when it crashes (try/finally).
 
+Probe reuse: with probe.max_age_s > 0 a network-aware strategy reuses ITS OWN most
+recent probes while they are at most that old, instead of probing before every
+decision. Reused probes cost no probe time and are not stored or added to the risk
+history again. The cache is per strategy (strategies never get each other's probes
+for free), is emptied at the start of every block, and, with
+probe.reprobe_after_failure, is dropped after any failed upload attempt.
+
 Resume: rounds with a complete run in the database are skipped. A round that
 crashed half-way stays in the database as an incomplete run (never overwritten
 or deleted) and is repeated from scratch as run 2. The risk history is rebuilt
@@ -67,6 +74,7 @@ class BlockRunner:
         self.names = list(cfg["providers"])
         self.strategies = build_strategies(cfg, setup["nearest_order"])
         self.history = HistoryStore(cfg["risk"]["window_k"])
+        self._probe_cache: dict[str, tuple[float, dict]] = {}   # strategy -> (probed at, probes)
 
     # ---- block --------------------------------------------------------------
     def run(self) -> dict:
@@ -89,6 +97,7 @@ class BlockRunner:
                 self.log(f"{self.block_id}: {b['condition']} applied to {b['degraded_provider']}")
 
             self._rebuild_history()
+            self._probe_cache.clear()
             done = self.db.completed_rounds(self.block_id)
             for rnd in b["rounds"]:
                 if rnd["round_id"] in done:
@@ -117,21 +126,34 @@ class BlockRunner:
         tcfg = self.cfg["transfer"]
         for pos, sname in enumerate(rnd["strategy_order"]):
             strategy = self.strategies[Strategy(sname)]
-            probes = probe_all(self.prober, self.names) if strategy.needs_probes else None
-            probe_time = sum(p.probe_time_s for p in probes.values()) if probes else 0.0
+            probes, fresh = self._get_probes(sname) if strategy.needs_probes else (None, False)
+            probe_time = sum(p.probe_time_s for p in probes.values()) if fresh else 0.0
             decision = strategy.select(SelectionInput(self.names, probes, self.history, self.baseline,
                                                       round_key=f"{self.block_id}:R{rid}"))
             key_base = f"{tcfg['object_prefix']}/{self.block_id}/R{rid:02d}/run{run_no}/{sname}"
             result = transfer_with_failover(decision, self.providers, self.payload, key_base, tcfg,
                                             probe_time_s=probe_time, clock=self.clock)
-            self.db.insert_transfer(self.ctx, rr, pos, decision, result, list(probes.values()) if probes else [])
-            self._update_history(sname, result, probes)
+            self.db.insert_transfer(self.ctx, rr, pos, decision, result, list(probes.values()) if fresh else [])
+            self._update_history(sname, result, probes if fresh else None)
+            if self.cfg["probe"].get("reprobe_after_failure", True) and any(not a.ok for a in result.attempts):
+                self._probe_cache.pop(sname, None)
             self.log(f"{self.block_id} R{rid}{' (warm-up)' if rnd['is_warmup'] else ''} {sname:14s} -> "
                      f"{result.provider:7s} {'ok  ' if result.success else 'FAIL'} "
                      f"e2e={result.end_to_end_time_s:7.2f}s attempts={len(result.attempts)}")
             self.clock.sleep(self.cfg["experiment"]["cooldown_s"])
         self.db.complete_round_run(rr)
         return len(rnd["strategy_order"])
+
+    def _get_probes(self, sname: str) -> tuple[dict, bool]:
+        """(probes, fresh). Reuses this strategy's cached probes while young enough."""
+        max_age = self.cfg["probe"].get("max_age_s", 0)
+        cached = self._probe_cache.get(sname)
+        if max_age > 0 and cached and self.clock.now() - cached[0] <= max_age:
+            return cached[1], False
+        started = self.clock.now()
+        probes = probe_all(self.prober, self.names)
+        self._probe_cache[sname] = (started, probes)
+        return probes, True
 
     # ---- risk history -------------------------------------------------------
     def _history_filters(self) -> tuple[str | None, str | None]:

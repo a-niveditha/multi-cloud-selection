@@ -9,14 +9,20 @@ analysis are the same code as in the real trials.
     python scripts/run_simulation.py                          # seed from config
     python scripts/run_simulation.py --seed 7 --rounds-per-condition 30
     python scripts/run_simulation.py --overwrite              # replace an earlier run with the same seed
+    python scripts/run_simulation.py --name light --set probe.samples=3 --set probe.max_age_s=60
 
-Writes data/simulation/seed<N>/ : simulation.sqlite, schedule.json, backups/, analysis/.
+--set overrides one config value for this run only (value parsed as YAML); the
+overrides are printed and written at the top of the analysis summary.
+
+Writes data/simulation/<name, default seed<N>>/ : simulation.sqlite, schedule.json, backups/, analysis/.
 Every result from here is a SIMULATION result and must be reported as such.
 """
 import argparse
 import shutil
 import sys
 from pathlib import Path
+
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -48,10 +54,23 @@ def main() -> None:
                     help="measured paired rounds per condition (multiple of 3)")
     ap.add_argument("--overwrite", action="store_true", help="delete an earlier run with the same seed first")
     ap.add_argument("--verbose", action="store_true", help="print every transfer")
+    ap.add_argument("--set", action="append", default=[], metavar="KEY.PATH=VALUE",
+                    help="override a config value for this run, e.g. probe.max_age_s=60")
+    ap.add_argument("--name", help="output folder name (default seed<N>)")
     args = ap.parse_args()
 
     cfg["experiment"]["rounds_per_condition"] = args.rounds_per_condition
-    out = REPO_ROOT / "data" / "simulation" / f"seed{args.seed}"
+    for item in args.set:
+        key, _, value = item.partition("=")
+        *parents, leaf = key.split(".")
+        node = cfg
+        for k in parents:
+            node = node[k]
+        if leaf not in node:
+            sys.exit(f"--set {key}: no such config key")
+        node[leaf] = yaml.safe_load(value)
+    note = NOTE + (f"\nConfig overrides: {', '.join(args.set)}" if args.set else "")
+    out = REPO_ROOT / "data" / "simulation" / (args.name or f"seed{args.seed}")
     if out.exists():
         if not args.overwrite:
             sys.exit(f"{out} already exists; use --overwrite or another --seed")
@@ -65,13 +84,13 @@ def main() -> None:
 
     clock = SimClock()
     providers = MockProvider.from_config(cfg, clock, section="simulation", seed=args.seed)
-    prober = MockProber(providers, cfg["probe"]["timeout_s"])
+    prober = MockProber(providers, cfg["probe"]["timeout_s"], pcfg=cfg["probe"])
     netem = MockNetem(providers)
     setup = build_setup(cfg, calibrate(prober, list(providers), cfg["probe"]["calibration_samples"]), "simulation")
     schedule = generate_schedule(cfg, args.seed, code_version())
     save_schedule(schedule, out / "schedule.json")
 
-    print(NOTE)
+    print(note)
     print(f"Seed {args.seed}, {args.rounds_per_condition} rounds per condition, "
           f"{len(schedule['blocks'])} blocks. Simulated baseline:")
     for p, v in setup["baseline"].items():
@@ -95,7 +114,7 @@ def main() -> None:
         db.close()
 
     summary = analyse.run([out / "simulation.sqlite"], out / "analysis", cfg["analysis"],
-                          include_pilot=True, note=NOTE)
+                          include_pilot=True, note=note)
     print()
     print(summary.read_text(encoding="utf-8"))
     print(f"\nWritten to {out}")

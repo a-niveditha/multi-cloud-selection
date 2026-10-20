@@ -112,14 +112,19 @@ class NetworkProber:
 
 
 class MockProber:
-    """Probes the simulated network of MockProvider objects."""
+    """Probes the simulated network of MockProvider objects. With `pcfg` (the config's
+    probe section) probes are costed like the real ones (samples + small upload)."""
 
-    def __init__(self, mocks: dict, timeout_s: float = 10.0):
+    def __init__(self, mocks: dict, timeout_s: float = 10.0, pcfg: dict | None = None):
         self.mocks = mocks
         self.timeout_s = timeout_s
+        self.pcfg = pcfg
 
     def probe(self, name: str) -> ProbeResult:
-        return self.mocks[name].probe(self.timeout_s)
+        if self.pcfg is None:
+            return self.mocks[name].probe(self.timeout_s)
+        return self.mocks[name].probe(self.timeout_s, samples=self.pcfg["samples"],
+                                      probe_bytes=self.pcfg["throughput_bytes"])
 
 
 def probe_all(prober, names: list[str]) -> dict[str, ProbeResult]:

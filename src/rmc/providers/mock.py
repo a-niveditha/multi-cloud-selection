@@ -164,13 +164,29 @@ class MockProvider(StorageProvider):
         self.clock.sleep(self.rtt_ms / 1000)                       # one metadata request
         return self._stored.get(key) == file.md5_hex
 
-    def probe(self, timeout_s: float = 10.0) -> ProbeResult:
-        """Simulated probe (the real probes live in rmc.probing, Stage 3)."""
+    def probe(self, timeout_s: float = 10.0, samples: int | None = None,
+              probe_bytes: int | None = None) -> ProbeResult:
+        """Simulated probe (the real probes live in rmc.probing).
+
+        Without `samples`: a toy probe costing 8 RTTs, with a smooth loss estimate.
+        With `samples` and `probe_bytes`: costed like the real probe - `samples` TCP
+        connects (one RTT each) plus a small upload of `probe_bytes` (3 RTTs set-up
+        + transfer) - and loss is estimated the way the real probe does, as the
+        fraction of the `samples` connects that were lost (coarse for few samples)."""
         self._update_episode()
         rtt = self.rtt_ms * self._jitter()
-        loss = max(0.0, self.loss_pct * self._jitter())
-        thr = self.throughput_mbps * (1 - min(0.9, LOSS_SENSITIVITY * loss / 100)) * self._jitter()
-        probe_time = min(timeout_s, 8 * rtt / 1000)
+        if samples is None:
+            loss = max(0.0, self.loss_pct * self._jitter())
+        else:
+            lost = sum(self.rng.random() < self.loss_pct / 100 for _ in range(samples))
+            loss = 100.0 * lost / samples
+        if samples is None:
+            thr = self.throughput_mbps * (1 - min(0.9, LOSS_SENSITIVITY * loss / 100)) * self._jitter()
+            probe_time = min(timeout_s, 8 * rtt / 1000)
+        else:
+            thr = self.throughput_mbps * (1 - min(0.9, LOSS_SENSITIVITY * self.loss_pct / 100)) * self._jitter()
+            upload_s = 3 * rtt / 1000 + probe_bytes * 8 / (thr * 1e6)
+            probe_time = samples * rtt / 1000 + min(timeout_s, upload_s)
         self.clock.sleep(probe_time)
         return ProbeResult(provider=self.name, rtt_ms=rtt, throughput_mbps=thr, loss_pct=loss,
                            probe_time_s=probe_time)

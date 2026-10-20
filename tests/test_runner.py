@@ -82,6 +82,7 @@ def test_full_degraded_block(env):
 
 
 def test_probes_are_recorded_only_for_network_aware_strategies(env):
+    env.cfg["probe"]["max_age_s"] = 0       # probe before every decision
     bid = env.block_id("natural")
     env.runner(bid).run()
     per_strategy = dict(env.db.conn.execute(
@@ -95,6 +96,7 @@ def test_probes_are_recorded_only_for_network_aware_strategies(env):
 
 
 def test_crash_then_resume(env):
+    env.cfg["probe"]["max_age_s"] = 0       # probe before every decision
     bid = env.block_id("mild")
     n_rounds = rounds_in_block(env, bid)
     # 6 probe calls per round (2 probing strategies x 3 providers): call 16 is mid-way through round 3
@@ -205,3 +207,38 @@ def test_preflight_refuses_cost_and_nearest_collapse(env):
     env.setup["nearest_order"] = ["b2", "aws_s3", "gcs"]                 # b2 is also the cheapest
     with pytest.raises(ValueError, match="cost_only and nearest"):
         env.runner(env.block_id("natural"))
+
+
+def test_probe_reuse_skips_probing_while_fresh(env):
+    env.cfg["probe"]["max_age_s"] = 1e9          # never stale within a block
+    env.cfg["probe"]["reprobe_after_failure"] = False
+    bid = env.block_id("natural")
+    env.runner(bid).run()
+    n = rounds_in_block(env, bid)
+    # each network-aware strategy probes once (3 providers), then reuses
+    for s in ("proposed", "static_network"):
+        assert env.count("SELECT COUNT(*) FROM probes p JOIN transfers t ON p.transfer_id = t.id "
+                         "WHERE t.strategy = ?", s) == 3
+        assert env.count("SELECT COUNT(*) FROM transfers WHERE strategy = ? AND probe_time_s > 0", s) == 1
+        assert env.count("SELECT COUNT(*) FROM transfers WHERE strategy = ?", s) == n
+
+
+@pytest.mark.parametrize("reprobe", [True, False])
+def test_probe_reuse_reprobes_after_failure(env, reprobe):
+    env.cfg["probe"]["max_age_s"] = 1e9
+    env.cfg["probe"]["reprobe_after_failure"] = reprobe
+    for m in env.mocks.values():
+        m.base.failure_prob = 1.0                 # every upload attempt fails
+    bid = env.block_id("natural")
+    env.runner(bid).run()
+    probed = env.count("SELECT COUNT(*) FROM transfers WHERE strategy = 'proposed' AND probe_time_s > 0")
+    assert probed == (rounds_in_block(env, bid) if reprobe else 1)
+
+
+def test_mock_probe_costed_like_real_probe(cfg):
+    mocks = MockProvider.from_config(cfg)
+    heavy = MockProber(mocks, pcfg={"samples": 10, "throughput_bytes": 524288}).probe("b2")
+    light = MockProber(mocks, pcfg={"samples": 3, "throughput_bytes": 131072}).probe("b2")
+    assert heavy.probe_time_s > 10 * mocks["b2"].base.rtt_ms / 1000 * 0.5
+    assert light.probe_time_s < heavy.probe_time_s
+    assert light.loss_pct in {0.0, 100 / 3, 200 / 3, 100.0}   # coarse: steps of 1/samples

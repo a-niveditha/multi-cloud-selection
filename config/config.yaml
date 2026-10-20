@@ -78,22 +78,31 @@ probe:
   # network-aware strategies, so keep it short.
   # RTT and loss come from the same batch of `samples` connection attempts:
   #   rtt  = median time of the successful ones
-  #   loss = failed / samples   (COARSE: 10 samples cannot resolve 1 % loss)
+  #   loss = failed / samples   (VERY COARSE: with 3 samples loss moves in 33 % steps,
+  #   so it only flags heavy loss; the risk history picks up the resulting failures)
   rtt_method: tcp_connect          # tcp_connect (port below) or icmp (ping3; often blocked by cloud endpoints)
   port: 443
-  samples: 10                      # TODO
+  # Reduced from 10 to cut probe overhead (simulation, seed 2026: the proposed
+  # method's probe time fell from 6.7 s to 1.8 s together with the settings below).
+  samples: 3
   # A lost SYN is retransmitted after ~1 s (Linux initial RTO), so a connect that
   # takes longer than this is counted as lost. Must stay above the worst expected
   # RTT under "severe" (e.g. natural 300 ms x 2 = 600 ms). TODO: check in calibration.
   sample_timeout_s: 0.9
   # Throughput: time a small upload of this file to <object_key_prefix>/<machine id>.bin
   # (the same key every time, overwritten).
-  # Only small_upload is implemented. TODO: confirm the size.
+  # Only small_upload is implemented. Reduced from 512 KiB to cut probe overhead.
   throughput_method: small_upload
-  throughput_bytes: 524288         # 512 KiB
-  payload_path: data/probe_512KiB.bin   # created by scripts/make_payload.py
+  throughput_bytes: 131072         # 128 KiB
+  payload_path: data/probe_128KiB.bin   # created by scripts/make_payload.py
   object_key_prefix: rmc-probe
   timeout_s: 10                    # TODO: per-provider throughput-probe timeout
+  # Probe reuse (see rmc.runner.runner): a network-aware strategy reuses its own
+  # last probes while they are at most max_age_s old. 0 = probe before every
+  # decision. Applies equally to proposed and static_network.
+  # Shorter = reacts faster to changes, longer = less overhead.
+  max_age_s: 60
+  reprobe_after_failure: true      # drop the reused probes after any failed attempt
   calibration_samples: 20          # probes per provider for the natural baseline
 
 transfer:
