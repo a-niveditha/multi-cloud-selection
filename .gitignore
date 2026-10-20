@@ -16,3 +16,6 @@ dist/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local Claude Code / editor launch settings
+.claude/

@@ -11,7 +11,7 @@ weighted sum of the components (weights from cfg["risk"]["components"], summing 
 A component with no data counts as 0. A provider with no history at all gets
 cfg["risk"]["cold_start_rho"].
 
-All of this (window, components, weights, caps) is a TODO in config.yaml.
+The window, components, weights and caps are set in config.yaml (risk:).
 """
 from __future__ import annotations
 

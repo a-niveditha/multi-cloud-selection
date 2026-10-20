@@ -53,8 +53,8 @@ def is_degraded(probes: dict[str, ProbeResult], baseline: dict | None, indicator
 
 @register("two_profile")
 def two_profile(probes: dict[str, ProbeResult], baseline: dict | None, cfg: dict) -> tuple[dict[str, float], str]:
-    """PLACEHOLDER rule: pick the "severe" weight profile if the network looks
-    degraded, otherwise the "normal" profile. Values come from config."""
+    """Pick the "severe" weight profile if the network looks degraded, otherwise
+    the "normal" profile. Values come from config."""
     wcfg = cfg["weights"]
     profile = "severe" if is_degraded(probes, baseline, wcfg["degradation_indicator"]) else "normal"
     return dict(wcfg["profiles"][profile]), profile

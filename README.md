@@ -18,14 +18,15 @@ measurements of real cloud services.
 ## Contents
 
 1. [Quick start](#quick-start)
-2. [The method](#the-method)
-3. [Architecture](#architecture)
-4. [Simulation model](#simulation-model)
-5. [Experiment design](#experiment-design)
-6. [Design decisions](#design-decisions)
-7. [Results](#results)
-8. [Limitations](#limitations)
-9. [Repository layout](#repository-layout)
+2. [Dashboard](#dashboard)
+3. [The method](#the-method)
+4. [Architecture](#architecture)
+5. [Simulation model](#simulation-model)
+6. [Experiment design](#experiment-design)
+7. [Design decisions](#design-decisions)
+8. [Results](#results)
+9. [Limitations](#limitations)
+10. [Repository layout](#repository-layout)
 
 ---
 
@@ -35,7 +36,7 @@ Any OS with Python 3.10+ (no cloud accounts or Linux tools needed).
 
 ```bash
 pip install -r requirements.txt
-pytest                                                        # 109 tests
+pytest                                                        # 115 tests
 python scripts/run_simulation.py --rounds-per-condition 30 --name final_30rounds --overwrite
 ```
 
@@ -46,6 +47,39 @@ tables and figures).
 Options: `--seed N` (default 2026), `--rounds-per-condition N` (multiple of 3),
 `--set key.path=value` to override one config value for a run (for example
 `--set probe.max_age_s=0`), `--verbose` to print every transfer.
+
+---
+
+## Dashboard
+
+An interactive Streamlit app for presenting the work:
+
+```bash
+streamlit run streamlit_app.py          # opens http://localhost:8501
+```
+
+| Tab | What it shows |
+|---|---|
+| **Results** | The committed 30-round run: headline numbers, transfer times per condition, the paired comparison (with significance), poor first choices, failures, which provider each strategy chose, and the effect of the probing change. |
+| **Walkthrough** | Replays one decision at a time: the probes measured (or reused), why the weight profile was normal or severe, how each provider's score is built from network, cost and risk, the upload attempts and failover, what the other strategies did in the same round, and how the risk estimate evolved over the block. A highlight list jumps to interesting moments, for example a switch to the severe profile or a failover. |
+| **What-if** | Change the weights, the degradation trigger, the probing, the risk window or the network conditions, and rerun the whole experiment with the real simulation code (about 3 s for 30 rounds). Shows the result next to the reported run. With the default settings it reproduces the reported run exactly. What-if runs are exploratory and are not the reported results. |
+
+The walkthrough recomputes every score from the stored probes with the same functions
+the strategy used, and the tests check that this matches the stored score for all
+216 network-aware decisions.
+
+### Deploy on Streamlit Community Cloud (free)
+
+1. Push the repository to GitHub (already done for `a-niveditha/multi-cloud-selection`).
+2. Sign in at [share.streamlit.io](https://share.streamlit.io) with GitHub. A private
+   repository needs Streamlit to be given access to it.
+3. **Create app**, then choose repository `a-niveditha/multi-cloud-selection`, branch
+   `main` and main file `streamlit_app.py`. Under **Advanced settings**, pick Python 3.12.
+4. **Deploy**. Streamlit installs `requirements.txt` and gives the app a public
+   `*.streamlit.app` link. Every push to `main` redeploys it.
+
+The app needs nothing else: the results it shows are committed in `results/`, and
+What-if runs are written to a temporary folder.
 
 ---
 
@@ -88,7 +122,7 @@ All strategies use the same failover rule, so the comparison is about the first 
 ## Architecture
 
 ```
- run_simulation.py
+ run_simulation.py / dashboard What-if  ->  rmc.simulation.simulate()
    |
    |-- MockProvider x3  (simulated providers: RTT, throughput, loss, jitter,
    |                     failures, timeouts, congestion episodes)
@@ -223,8 +257,8 @@ In each block one provider's simulated path is degraded (relative to its own nat
 
 ## Results
 
-Simulation, seed 2026, 30 measured rounds per condition, code version `d04694e7fcb1`.
-Full output: [`results/final_30rounds/analysis/summary.txt`](results/final_30rounds/analysis/summary.txt).
+Simulation, seed 2026, 30 measured rounds per condition (the code version and config
+hash are recorded in the summary). Full output: [`results/final_30rounds/analysis/summary.txt`](results/final_30rounds/analysis/summary.txt).
 
 ### End-to-end transfer time (seconds; mean, with 90th percentile in brackets)
 
@@ -340,15 +374,19 @@ Same seed, 30 rounds per condition. Results in [`results/probe_variants/`](resul
 ├── README.md
 ├── requirements.txt
 ├── pyproject.toml
+├── streamlit_app.py          # dashboard entry point
+├── .streamlit/config.toml    # dashboard theme and server settings
+├── dashboard/                # dashboard: data.py (no Streamlit), charts.py, one module per tab
 ├── config/config.yaml        # every setting and design decision
 ├── scripts/
 │   ├── run_simulation.py     # run the whole experiment + analysis
 │   ├── analyse.py            # re-analyse a results database
 │   └── make_payload.py       # the 10 MiB payload (created automatically)
-├── src/rmc/                  # see Architecture
-├── tests/                    # pytest (109 tests)
+├── src/rmc/                  # see Architecture (simulation.py runs the whole experiment)
+├── tests/                    # pytest (115 tests, including the dashboard run headless)
 ├── results/
-│   ├── final_30rounds/       # main results (database, schedule, analysis/)
+│   ├── final_30rounds/       # main results: simulation.sqlite, schedule.json, setup.json,
+│   │                         #   config.json (effective settings), analysis/
 │   └── probe_variants/       # A_original, B_light, C_reuse (D = final_30rounds)
 └── data/                     # generated payload and per-block backups (not committed)
 ```
