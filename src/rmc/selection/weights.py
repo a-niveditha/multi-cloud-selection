@@ -1,8 +1,9 @@
 """Adaptive weights w_N(t), w_C(t), w_R(t).
 
-PLACEHOLDER. The real weight-adaptation rule is NOT decided yet. The rule is
-pluggable: write a function with the signature below, decorate it with
-@register("name"), and set `weights.rule: name` in config.yaml.
+The experiment uses the `two_profile` rule (a "normal" and a "severe" weight
+profile, chosen by a degradation indicator). The rule is pluggable: write a
+function with the signature below, decorate it with @register("name"), and set
+`weights.rule: name` in config.yaml.
 
     rule(probes, baseline, cfg) -> (weights, profile_name)
       probes:   {provider: ProbeResult} measured just before this decision

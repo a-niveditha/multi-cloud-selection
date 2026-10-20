@@ -1,0 +1,159 @@
+DATA SOURCE: SIMULATION. Providers, network conditions and failures are simulated (config.yaml `simulation:` profiles); these are not real cloud measurements.
+Config overrides: probe.samples=10, probe.throughput_bytes=524288
+
+Analysis of ['E:\\Codes\\cn_project\\results\\probe_variants\\C_reuse\\simulation.sqlite']  (2026-10-20 18:39 UTC)
+Transfers: 540 (450 measured, 90 warm-up); blocks: 9; machines: ['simulation']; code versions: ['d04694e7fcb1']; config hashes: ['58bb5b7465e6']
+Metric: end_to_end_time_s. diff = baseline - proposed (positive = proposed faster). Two-sided tests.
+Primary test: wilcoxon, correction: holm, alpha 0.05, failed transfers: include.
+Exploratory subgroup rows are NOT corrected for multiple comparisons.
+
+== comparisons ==
+     family       baseline condition                  subgroup  proposed_mean  baseline_mean  n  mean_diff  median_diff  shapiro_p  ttest_p  wilcoxon_p  primary_p  primary_p_adj  significant
+    primary static_network   natural                       all        11.9779         5.6020 30    -6.3759      -3.7563     0.0000   0.0366      0.0058     0.0058         0.0173         True
+    primary static_network      mild                       all        11.4279         6.6279 30    -4.8000      -3.1730     0.0000   0.0131      0.0003     0.0003         0.0022         True
+exploratory static_network      mild   baseline chose degraded         8.3124         6.6240 11    -1.6883      -1.1887     0.6982   0.2964      0.3652     0.3652         0.3652        False
+exploratory static_network      mild baseline avoided degraded        13.2317         6.6302 19    -6.6015      -3.5595     0.0000   0.0237      0.0000     0.0000         0.0000        False
+    primary static_network    severe                       all        10.7327         8.1861 30    -2.5466      -0.2389     0.0000   0.3006      0.6263     0.6263         0.6263        False
+exploratory static_network    severe   baseline chose degraded         8.9186         9.6761  3     0.7574       1.4716     0.2461   0.5003      0.5000     0.5000         0.5000        False
+exploratory static_network    severe baseline avoided degraded        10.9343         8.0206 27    -2.9137      -0.5376     0.0000   0.2867      0.5303     0.5303         0.5303        False
+    primary      cost_only   natural                       all        11.9779         5.3863 30    -6.5916      -3.5714     0.0000   0.0253      0.0003     0.0003         0.0022         True
+    primary      cost_only      mild                       all        11.4279         7.4011 30    -4.0268      -4.7089     0.0000   0.1369      0.0001     0.0001         0.0008         True
+exploratory      cost_only      mild   baseline chose degraded        15.2905         5.5273 10    -9.7631      -6.1885     0.0000   0.0936      0.0098     0.0098         0.0098        False
+exploratory      cost_only      mild baseline avoided degraded         9.4967         8.3380 20    -1.1586      -4.1830     0.0000   0.6893      0.0064     0.0064         0.0064        False
+    primary      cost_only    severe                       all        10.7327        10.6480 30    -0.0847      -3.2201     0.0000   0.9796      0.1241     0.1241         0.2483        False
+exploratory      cost_only    severe   baseline chose degraded        16.3921        16.0960 10    -0.2961      -0.6772     0.0598   0.9713      0.9219     0.9219         0.9219        False
+exploratory      cost_only    severe baseline avoided degraded         7.9030         7.9240 20     0.0210      -3.8229     0.0000   0.9947      0.0266     0.0266         0.0266        False
+    primary        nearest   natural                       all        11.9779         4.8977 30    -7.0802      -6.8227     0.0000   0.0434      0.0000     0.0000         0.0001         True
+    primary        nearest      mild                       all        11.4279         2.6703 30    -8.7576      -7.0138     0.0000   0.0001      0.0000     0.0000         0.0000         True
+exploratory        nearest      mild   baseline chose degraded         8.1436         3.1353 10    -5.0084      -5.2421     0.9402   0.0005      0.0020     0.0020         0.0020        False
+exploratory        nearest      mild baseline avoided degraded        13.0701         2.4378 20   -10.6323      -9.4373     0.0000   0.0012      0.0000     0.0000         0.0000        False
+    primary        nearest    severe                       all        10.7327         5.1336 30    -5.5991      -5.6963     0.0000   0.0690      0.0001     0.0001         0.0006         True
+exploratory        nearest    severe   baseline chose degraded         8.3475        10.4939 10     2.1464      -3.4824     0.0000   0.7143      0.0840     0.0840         0.0840        False
+exploratory        nearest    severe baseline avoided degraded        11.9253         2.4535 20    -9.4718      -8.1255     0.0000   0.0077      0.0004     0.0004         0.0004        False
+    primary         random   natural                       all        11.9779         6.2421 30    -5.7358      -4.7032     0.0000   0.1108      0.0004     0.0004         0.0022         True
+    primary         random      mild                       all        11.4279         6.9583 30    -4.4697      -5.8097     0.0000   0.1130      0.0010     0.0010         0.0038         True
+exploratory         random      mild   baseline chose degraded        10.2106        11.4964  9     1.2858      -6.5281     0.0009   0.8415      0.4258     0.4258         0.4258        False
+exploratory         random      mild baseline avoided degraded        11.9497         5.0134 21    -6.9363      -5.6141     0.0000   0.0223      0.0004     0.0004         0.0004        False
+    primary         random    severe                       all        10.7327         6.7556 30    -3.9771      -4.8089     0.0000   0.1586      0.0002     0.0002         0.0014         True
+exploratory         random    severe   baseline chose degraded        10.6975        10.3887 12    -0.3088      -4.9486     0.0000   0.9504      0.0342     0.0342         0.0342        False
+exploratory         random    severe baseline avoided degraded        10.7562         4.3336 18    -6.4226      -4.5259     0.0000   0.0630      0.0066     0.0066         0.0066        False
+
+== variability ==
+condition       strategy  n    mean  median     std     p90    iqr     cv
+     mild      cost_only 30  7.4011  5.1954 10.7013  8.3229 2.9079 1.4459
+     mild        nearest 30  2.6703  2.4176  1.5713  3.0073 0.5924 0.5884
+     mild       proposed 30 11.4279 10.0267 10.3928 14.2045 5.1055 0.9094
+     mild         random 30  6.9583  4.4719 11.0347  9.4259 2.8878 1.5858
+     mild static_network 30  6.6279  7.8398  3.0699  9.5503 5.7494 0.4632
+  natural      cost_only 30  5.3863  5.2937  1.4792  6.9165 2.1096 0.2746
+  natural        nearest 30  4.8977  2.1748 12.4153  2.9797 0.9003 2.5349
+  natural       proposed 30 11.9779  9.3479 15.3133 12.2814 5.1569 1.2785
+  natural         random 30  6.2421  3.6101 10.9659  8.1968 3.1793 1.7568
+  natural static_network 30  5.6020  6.5784  3.1332  9.2683 5.6806 0.5593
+   severe      cost_only 30 10.6480  4.9432 14.8803 15.2369 6.3442 1.3975
+   severe        nearest 30  5.1336  2.6981 10.9040  5.7000 2.8396 2.1240
+   severe       proposed 30 10.7327  9.3431 11.6484 13.7674 5.6105 1.0853
+   severe         random 30  6.7556  4.5268 11.4733  9.3383 2.2406 1.6983
+   severe static_network 30  8.1861  9.0815  4.1700 12.8115 7.3147 0.5094
+
+== reliability ==
+condition       strategy  transfers  success_rate  transfers_with_timeout  failed_attempts  transfers_with_failover  mean_retry_time_s  unverified  chose_degraded_rate
+     mild      cost_only         30           1.0                       1                3                        3            21.5582           0               0.3333
+     mild        nearest         30           1.0                       0                1                        1             3.6781           0               0.3333
+     mild       proposed         30           1.0                       1                4                        4            16.7241           0               0.4000
+     mild         random         30           1.0                       1                2                        2            30.1925           0               0.3000
+     mild static_network         30           1.0                       0                1                        1             1.2309           0               0.3667
+  natural      cost_only         30           1.0                       0                0                        0                NaN           0                  NaN
+  natural        nearest         30           1.0                       1                3                        2            30.3381           0                  NaN
+  natural       proposed         30           1.0                       2                5                        4            30.9737           0                  NaN
+  natural         random         30           1.0                       1                1                        1            60.0000           0                  NaN
+  natural static_network         30           1.0                       0                0                        0                NaN           0                  NaN
+   severe      cost_only         30           1.0                       2                3                        3            40.3169           0               0.3333
+   severe        nearest         30           1.0                       1                2                        2            30.2504           0               0.3333
+   severe       proposed         30           1.0                       1                3                        3            22.3459           0               0.1000
+   severe         random         30           1.0                       1                4                        4            16.4338           0               0.4000
+   severe static_network         30           1.0                       0                3                        3             2.1934           0               0.1000
+
+== degraded_choice_pairs ==
+      baseline condition  rounds  both  only_proposed  only_baseline  neither  binomial_p
+static_network      mild      30     5              7              6       12      1.0000
+static_network    severe      30     0              3              3       24      1.0000
+     cost_only      mild      30     7              5              3       15      0.7266
+     cost_only    severe      30     3              0              7       20      0.0156
+       nearest      mild      30     5              7              5       13      0.7744
+       nearest    severe      30     0              3             10       17      0.0923
+        random      mild      30     5              7              4       14      0.5488
+        random    severe      30     1              2             11       16      0.0225
+
+== probe_overhead ==
+      strategy  mean_probe_time_s  mean_end_to_end_s  probe_share
+     cost_only             0.0000             7.8118       0.0000
+       nearest             0.0000             4.2339       0.0000
+      proposed             4.5438            11.3795       0.3993
+        random             0.0000             6.6520       0.0000
+static_network             4.1443             6.8053       0.6090
+
+== cold_start ==
+ round_id  is_warmup       strategy  n    mean  failed_attempts
+        1       True      cost_only  9  5.2599                0
+        1       True        nearest  9  3.5103                0
+        1       True       proposed  9 10.4492                0
+        1       True         random  9  4.2720                0
+        1       True static_network  9 10.4741                1
+        2       True      cost_only  9  5.4839                0
+        2       True        nearest  9  3.8233                1
+        2       True       proposed  9  8.9536                0
+        2       True         random  9  5.0776                0
+        2       True static_network  9  6.2651                0
+        3      False      cost_only  9 12.0539                1
+        3      False        nearest  9  2.9412                0
+        3      False       proposed  9  9.4307                1
+        3      False         random  9 11.0367                1
+        3      False static_network  9  5.7464                0
+        4      False      cost_only  9 11.3321                1
+        4      False        nearest  9  9.9715                1
+        4      False       proposed  9 13.3587                2
+        4      False         random  9  3.6518                0
+        4      False static_network  9  6.1425                0
+        5      False      cost_only  9  8.2476                0
+        5      False        nearest  9  2.4979                0
+        5      False       proposed  9 11.0480                0
+        5      False         random  9  4.0350                1
+        5      False static_network  9  8.5643                0
+        6      False      cost_only  9  6.7365                0
+        6      False        nearest  9  2.4931                0
+        6      False       proposed  9 15.5482                1
+        6      False         random  9  6.9545                1
+        6      False static_network  9  5.1355                0
+        7      False      cost_only  9  5.4040                0
+        7      False        nearest  9  3.3544                1
+        7      False       proposed  9  8.4256                1
+        7      False         random  9  4.7742                2
+        7      False static_network  9  7.9389                0
+        8      False      cost_only  9 12.6780                1
+        8      False        nearest  9  2.5630                1
+        8      False       proposed  9  8.6710                0
+        8      False         random  9  4.8856                0
+        8      False static_network  9  6.4135                1
+        9      False      cost_only  9  5.6792                1
+        9      False        nearest  9  2.6198                0
+        9      False       proposed  9  7.7986                2
+        9      False         random  9  3.3578                0
+        9      False static_network  9  6.2842                2
+       10      False      cost_only  9  5.8781                1
+       10      False        nearest  9  2.5065                0
+       10      False       proposed  9 14.3693                2
+       10      False         random  9 16.5762                2
+       10      False static_network  9  7.0771                0
+       11      False      cost_only  9  5.5039                0
+       11      False        nearest  9 10.9679                3
+       11      False       proposed  9 16.7082                3
+       11      False         random  9  5.7237                0
+       11      False static_network  9  6.6830                0
+       12      False      cost_only  9  4.6048                1
+       12      False        nearest  9  2.4234                0
+       12      False       proposed  9  8.4368                0
+       12      False         random  9  5.5244                0
+       12      False static_network  9  8.0678                1
+
+Figures: metric_by_condition.png, paired_differences.png, subgroup_differences.png, degraded_choice_rate.png, failures.png

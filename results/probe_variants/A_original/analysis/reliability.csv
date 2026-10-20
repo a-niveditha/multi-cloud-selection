@@ -1,0 +1,16 @@
+condition,strategy,transfers,success_rate,transfers_with_timeout,failed_attempts,transfers_with_failover,mean_retry_time_s,unverified,chose_degraded_rate
+mild,cost_only,30,1.0,2,3,3,41.80403982560498,0,0.3333333333333333
+mild,nearest,30,1.0,0,0,0,,0,0.3333333333333333
+mild,proposed,30,1.0,3,3,3,60.0,0,0.5333333333333333
+mild,random,30,1.0,1,2,2,33.94612017001509,0,0.3
+mild,static_network,30,1.0,0,1,1,0.8861828395320117,0,0.3
+natural,cost_only,30,1.0,0,2,2,4.763571110676821,0,
+natural,nearest,30,1.0,0,2,2,4.135926965007229,0,
+natural,proposed,30,1.0,0,2,2,8.390348363231851,0,
+natural,random,30,1.0,0,0,0,,0,
+natural,static_network,30,1.0,0,0,0,,0,
+severe,cost_only,30,1.0,3,6,6,32.04589438643461,0,0.3333333333333333
+severe,nearest,30,1.0,1,1,1,60.0,0,0.3333333333333333
+severe,proposed,30,1.0,1,2,2,30.19247296095591,0,0.03333333333333333
+severe,random,30,1.0,2,5,5,27.559643830036453,0,0.4
+severe,static_network,30,1.0,0,1,1,1.2129143079300775,0,0.03333333333333333

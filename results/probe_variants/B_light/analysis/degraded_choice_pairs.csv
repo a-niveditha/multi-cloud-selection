@@ -1,0 +1,9 @@
+baseline,condition,rounds,both,only_proposed,only_baseline,neither,binomial_p
+static_network,mild,30,0,7,7,16,1.0
+static_network,severe,30,0,3,1,26,0.625
+cost_only,mild,30,7,0,3,20,0.25
+cost_only,severe,30,2,1,8,19,0.0390625
+nearest,mild,30,0,7,10,13,0.629058837890625
+nearest,severe,30,1,2,9,18,0.0654296875
+random,mild,30,5,2,4,19,0.6875
+random,severe,30,0,3,12,15,0.03515625
