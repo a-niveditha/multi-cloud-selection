@@ -1,10 +1,9 @@
 """Run the whole experiment in a SIMULATED multi-cloud environment, then analyse it.
 
-No cloud accounts, credentials, Ubuntu or netem are needed: the three providers are
-MockProvider objects configured under `simulation:` in config.yaml, the mild/severe
-conditions are applied to the simulated paths, and time is simulated (a full run
-takes seconds). The selection strategies, risk history, failover, database and
-analysis are the same code as in the real trials.
+The three providers are MockProvider objects configured under `simulation:` in
+config.yaml, the mild/severe conditions are applied to the simulated paths, and time
+is simulated, so a full run takes seconds on any OS. The selection strategies, risk
+history, failover, database and analysis are the real experiment code.
 
     python scripts/run_simulation.py                          # seed from config
     python scripts/run_simulation.py --seed 7 --rounds-per-condition 30
@@ -14,7 +13,8 @@ analysis are the same code as in the real trials.
 --set overrides one config value for this run only (value parsed as YAML); the
 overrides are printed and written at the top of the analysis summary.
 
-Writes data/simulation/<name, default seed<N>>/ : simulation.sqlite, schedule.json, backups/, analysis/.
+Writes results/<name, default seed<N>>/ : simulation.sqlite, schedule.json, analysis/
+(per-block database backups go to data/backups/<name>/, which is not committed).
 Every result from here is a SIMULATION result and must be reported as such.
 """
 import argparse
@@ -70,13 +70,14 @@ def main() -> None:
             sys.exit(f"--set {key}: no such config key")
         node[leaf] = yaml.safe_load(value)
     note = NOTE + (f"\nConfig overrides: {', '.join(args.set)}" if args.set else "")
-    out = REPO_ROOT / "data" / "simulation" / (args.name or f"seed{args.seed}")
+    name = args.name or f"seed{args.seed}"
+    out = REPO_ROOT / "results" / name
     if out.exists():
         if not args.overwrite:
-            sys.exit(f"{out} already exists; use --overwrite or another --seed")
+            sys.exit(f"{out} already exists; use --overwrite, another --name or another --seed")
         shutil.rmtree(out)
     out.mkdir(parents=True)
-    cfg["storage"]["backup_dir"] = str(out / "backups")
+    cfg["storage"]["backup_dir"] = str(REPO_ROOT / "data" / "backups" / name)
 
     exp = cfg["experiment"]
     make(REPO_ROOT / exp["payload_path"], exp["payload_size_bytes"], exp["payload_seed"])
@@ -103,7 +104,7 @@ def main() -> None:
             ctx = RunContext(machine_id="simulation", code_version=code_version(), block_id=b["block_id"],
                              config_hash=config_hash(cfg), is_pilot=True)
             preflight(cfg, schedule, b["block_id"], db, ctx, setup,
-                      git_dirty=False, allow_dirty=True, netem_dry_run=False)
+                      git_dirty=False, allow_dirty=True)
             s = BlockRunner(cfg, schedule, b["block_id"], db, ctx, providers, prober, netem, setup,
                             payload, clock, log=log).run()
             print(f"  {b['block_id']} {b['condition']:8s} degraded={b['degraded_provider'] or '-':7s} "

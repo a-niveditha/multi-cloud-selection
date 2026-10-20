@@ -68,7 +68,7 @@ class AttemptResult:
     transfer_time_s: float          # upload duration; for a timeout this is the time-to-failure
     success: bool                   # upload call completed without error
     timed_out: bool
-    verified: bool | None           # checksum/ETag matched; None if upload failed (not checked)
+    verified: bool | None           # checksum matched; None if upload failed (not checked)
     verify_time_s: float = 0.0
     error: str | None = None
 
@@ -112,9 +112,9 @@ class LocalFile:
     """The payload file and its checksums (computed once, compared after upload)."""
     path: str
     size_bytes: int
-    md5_hex: str                    # S3 single-part ETag
-    md5_b64: str                    # GCS blob.md5_hash
-    sha1_hex: str                   # B2 contentSha1
+    md5_hex: str                    # compared by MockProvider.verify
+    md5_b64: str
+    sha1_hex: str
 
     @classmethod
     def from_path(cls, path: str | Path) -> "LocalFile":

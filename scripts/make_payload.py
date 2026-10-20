@@ -1,5 +1,5 @@
-"""Create the reproducible payload files from config (sizes and seed):
-the 10 MB trial payload and the small throughput-probe file.
+"""Create the reproducible 10 MB trial payload from config (size and seed).
+run_simulation.py calls this automatically.
 
     python scripts/make_payload.py
 """
@@ -25,9 +25,8 @@ def make(path: Path, size: int, seed: int) -> None:
 
 def main() -> None:
     cfg = load_config()
-    exp, probe = cfg["experiment"], cfg["probe"]
+    exp = cfg["experiment"]
     make(REPO_ROOT / exp["payload_path"], exp["payload_size_bytes"], exp["payload_seed"])
-    make(REPO_ROOT / probe["payload_path"], probe["throughput_bytes"], exp["payload_seed"] + 1)
 
 
 if __name__ == "__main__":

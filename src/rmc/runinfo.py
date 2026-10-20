@@ -9,6 +9,7 @@ from rmc.config import REPO_ROOT
 
 
 def machine_id() -> str:
+    """Recorded on every row; RMC_MACHINE_ID overrides the hostname."""
     return os.environ.get("RMC_MACHINE_ID") or socket.gethostname()
 
 

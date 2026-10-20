@@ -1,10 +1,4 @@
-# Secrets: never commit
-.env
-*.pem
-*service-account*.json
-gcp-key*.json
-
-# Trial data, backups, logs, schedules generated on the trial machine
+# Generated payload, scratch runs and per-block backups (results/ IS committed)
 data/
 
 # Python

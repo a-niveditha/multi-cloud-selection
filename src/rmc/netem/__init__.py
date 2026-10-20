@@ -1,4 +1,4 @@
-"""tc/netem apply/clear helper with dry-run."""
-from rmc.netem.netem import MockNetem, TcNetem, netem_interface, uncovered_endpoint_ips
+"""Simulated network conditions (netem-like degradation of one provider path)."""
+from rmc.netem.netem import MockNetem
 
-__all__ = ["MockNetem", "TcNetem", "netem_interface", "uncovered_endpoint_ips"]
+__all__ = ["MockNetem"]

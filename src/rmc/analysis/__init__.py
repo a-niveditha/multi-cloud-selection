@@ -1,1 +1,1 @@
-"""Paired statistics and plots (Stage 5)."""
+"""Paired statistics and plots."""

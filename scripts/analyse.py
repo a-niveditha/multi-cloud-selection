@@ -1,9 +1,10 @@
 """Paired analysis and plots. Reads the database READ-ONLY.
 
-    python scripts/analyse.py                                   # real data (data/trials.sqlite)
-    python scripts/analyse.py --db data/mock.sqlite --include-pilot --out data/analysis_mock
-    python scripts/analyse.py --db collected/alice.sqlite collected/bob.sqlite   # several trial machines
+run_simulation.py already runs this at the end of every simulation. To re-analyse:
 
+    python scripts/analyse.py --db results/final_30rounds/simulation.sqlite --include-pilot --out data/reanalysis
+
+Simulation rows are flagged like pilot rows, so they need --include-pilot.
 Writes CSV tables, PNG figures and summary.txt to --out (default data/analysis/<timestamp>).
 """
 import argparse
@@ -64,10 +65,9 @@ def run(dbs: list[Path], out: Path, acfg: dict, include_pilot: bool, note: str |
 def main() -> None:
     cfg = load_config()
     ap = argparse.ArgumentParser()
-    ap.add_argument("--db", nargs="+", default=[str(REPO_ROOT / cfg["storage"]["db_path"])],
-                    help="one or more databases (one per trial machine)")
+    ap.add_argument("--db", nargs="+", required=True, help="one or more simulation databases")
     ap.add_argument("--out")
-    ap.add_argument("--include-pilot", action="store_true", help="include pilot/mock rows (never for the report)")
+    ap.add_argument("--include-pilot", action="store_true", help="include pilot/simulation rows (needed for simulation databases)")
     args = ap.parse_args()
     out = Path(args.out) if args.out else REPO_ROOT / "data" / "analysis" / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     summary = run([Path(d) for d in args.db], out, cfg["analysis"], args.include_pilot)

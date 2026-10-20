@@ -1,28 +1,18 @@
-"""Common interface for storage providers (S3, GCS, B2, mock).
+"""Common interface for storage providers (implemented by the simulated MockProvider).
 
-An adapter implements only the SDK-specific methods:
+A provider implements:
   put_object(file, key, timeout_s, overwrite)
                                     upload; raise TimeoutError on timeout, any other exception on failure.
-                                    Trial uploads use overwrite=False (unique keys); only the
-                                    throughput probe reuses its key and passes overwrite=True.
-  verify(file, key) -> bool         compare the provider's stored checksum/ETag with the local one,
-                                    WITHOUT downloading the object
+                                    Trial uploads use overwrite=False (unique keys).
+  verify(file, key) -> bool         compare the stored checksum with the local one
   delete_object(key)                remove an uploaded object (cleanup, never timed)
 
 `upload()` (shared) does the timing, timeout/failure classification and verification,
 and returns an AttemptResult. Failover across providers is NOT done here; it is in
 rmc.transfer, which calls upload() on the next-ranked provider.
-
-Timeouts: real adapters set `enforce_deadline = True`, so put_object runs in a
-worker thread and upload() stops waiting after timeout_s (a hard wall-clock
-deadline, whatever the SDK does). LIMITATION: Python cannot kill a thread, so an
-abandoned upload may keep running in the background until the SDK's own socket
-timeout ends it, and can share bandwidth with the failover attempt. The adapters
-set SDK socket timeouts and disable SDK retries to keep this short.
 """
 from __future__ import annotations
 
-import threading
 from abc import ABC, abstractmethod
 
 from rmc.clock import RealClock
@@ -30,8 +20,6 @@ from rmc.models import AttemptResult, LocalFile
 
 
 class StorageProvider(ABC):
-    enforce_deadline = False   # real adapters set True; the mock enforces timeouts itself
-
     def __init__(self, name: str, clock=None):
         self.name = name
         self.clock = clock or RealClock()
@@ -45,35 +33,13 @@ class StorageProvider(ABC):
     def delete_object(self, key: str) -> None:
         raise NotImplementedError
 
-    def put_with_deadline(self, file: LocalFile, key: str, timeout_s: float, overwrite: bool = False) -> None:
-        """put_object, but raise TimeoutError after timeout_s even if the SDK hangs."""
-        if not self.enforce_deadline:
-            self.put_object(file, key, timeout_s, overwrite)
-            return
-        outcome: dict = {}
-
-        def work():
-            try:
-                self.put_object(file, key, timeout_s, overwrite)
-                outcome["ok"] = True
-            except BaseException as e:   # passed back to the caller below
-                outcome["error"] = e
-
-        t = threading.Thread(target=work, name=f"upload-{self.name}", daemon=True)
-        t.start()
-        t.join(timeout_s)
-        if t.is_alive():
-            raise TimeoutError(f"no completion within {timeout_s}s (upload thread abandoned)")
-        if "error" in outcome:
-            raise outcome["error"]
-
     def upload(self, file: LocalFile, key: str, timeout_s: float) -> AttemptResult:
         start = self.clock.now()
         try:
-            self.put_with_deadline(file, key, timeout_s)
+            self.put_object(file, key, timeout_s)
         except TimeoutError as e:
             return self._failed(key, start, timed_out=True, error=f"timeout: {e}")
-        except Exception as e:  # any SDK / network error counts as a failed attempt
+        except Exception as e:  # any upload error counts as a failed attempt
             return self._failed(key, start, timed_out=False, error=f"{type(e).__name__}: {e}")
 
         transfer_time = self.clock.now() - start

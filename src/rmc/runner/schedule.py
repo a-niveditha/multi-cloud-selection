@@ -1,5 +1,5 @@
 """Generate the full trial schedule in advance, from a recorded random seed.
-Operators choose nothing: the runner follows this file.
+Nothing is chosen by hand: the runner follows this schedule.
 
 Blocks (with 3 providers and rounds_per_condition = R, a multiple of 3):
   mild   x each provider degraded   -> 3 blocks of R/3 rounds

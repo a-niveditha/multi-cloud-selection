@@ -155,9 +155,9 @@ def test_random_strategy_is_the_same_after_resume(env):
 
 
 # ---- preflight ------------------------------------------------------------------
-def check(env, bid, ctx=None, git_dirty=False, allow_dirty=False, netem_dry_run=False, schedule=None):
+def check(env, bid, ctx=None, git_dirty=False, allow_dirty=False, schedule=None):
     preflight(env.cfg, schedule or env.schedule, bid, env.db, ctx or env.ctx(bid), env.setup,
-              git_dirty=git_dirty, allow_dirty=allow_dirty, netem_dry_run=netem_dry_run)
+              git_dirty=git_dirty, allow_dirty=allow_dirty)
 
 
 def test_preflight_passes_on_clean_tree(env):
@@ -185,14 +185,6 @@ def test_preflight_refuses_block_started_on_another_machine(env):
     env.db.start_round_run(env.ctx(bid, machine="other-laptop"), 1, True, "natural", None, [])
     with pytest.raises(RunnerRefused, match="another machine"):
         check(env, bid)
-
-
-def test_preflight_refuses_degraded_block_with_dry_run_netem_except_pilot(env):
-    bid = env.block_id("severe")
-    with pytest.raises(RunnerRefused, match="dry_run"):
-        check(env, bid, netem_dry_run=True)
-    check(env, bid, ctx=env.ctx(bid, is_pilot=True), netem_dry_run=True)
-    check(env, env.block_id("natural"), netem_dry_run=True)              # natural needs no netem
 
 
 def test_preflight_refuses_database_of_another_schedule(env):

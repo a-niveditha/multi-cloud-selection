@@ -14,10 +14,7 @@ DEFAULT_CONFIG_PATH = REPO_ROOT / "config" / "config.yaml"
 
 
 def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> dict:
-    """Load config.yaml. Also loads .env (if present) into the environment, so machine
-    settings and credentials are available to every script; existing variables win."""
-    from dotenv import load_dotenv
-    load_dotenv(REPO_ROOT / ".env", override=False)
+    """Load config.yaml."""
     with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 

@@ -1,130 +1,87 @@
 # Risk-Aware Adaptive Multi-Cloud Selection: experiment configuration.
 #
-# Every value marked "TODO" is NOT decided yet. The default next to it is a
-# placeholder so the code runs; it is not a claim that it is a good value.
-# Decide all TODOs during the pilot, then FREEZE this file and tag the release
-# in Git before the real trials. Do not change it after seeing real results.
+# The experiment runs in a SIMULATED multi-cloud environment (scripts/run_simulation.py).
+# The provider and network values under `simulation:` are assumptions, not measurements.
+# The design decisions recorded here are explained in README.md ("Design decisions").
 #
 # Units are in the key names: _s seconds, _ms milliseconds, _pct percent (0-100),
 # _mbps megabits per second, _usd US dollars.
 
 experiment:
-  payload_path: data/payload_10MB.bin   # created by scripts/make_payload.py
+  payload_path: data/payload_10MB.bin   # created automatically (scripts/make_payload.py)
   payload_size_bytes: 10485760          # 10 MiB
   payload_seed: 2026                    # payload content is reproducible from this seed
-  # TODO: rounds per condition. >= 8 required; a multiple of 3 balances the
-  # degraded-provider rotation (one third of the rounds per degraded provider).
+  # Measured paired rounds per condition (>= 8; a multiple of 3 balances the
+  # degraded-provider rotation). run_simulation.py --rounds-per-condition overrides it.
   rounds_per_condition: 9
-  # TODO: warm-up rounds at the start of every block, so the risk history is
-  # not empty. Warm-up rows are stored (flag is_warmup=1) and analysed separately.
+  # Warm-up rounds at the start of every block, so the risk history is not empty.
+  # Warm-up rows are stored (is_warmup = 1) and analysed separately.
   warmup_rounds_per_block: 2
-  # TODO: cooldown between two transfers, seconds.
-  cooldown_s: 5
+  cooldown_s: 5                         # simulated pause between two transfers
   strategies: [proposed, static_network, cost_only, nearest, random]
   conditions: [natural, mild, severe]
 
 providers:
-  # Each provider: SDK kind, region, the env var that holds the bucket name, and
-  # the endpoint host used for probing. Credentials come ONLY from environment
-  # variables (see .env.example).
-  # TODO: choose the actual regions (geographically distinct, available on the
-  # free/low tiers you have). The hosts below must match the chosen regions.
-  aws_s3:
-    kind: s3
-    region: ap-south-1                          # TODO
-    bucket_env: RMC_S3_BUCKET
-    endpoint_host: s3.ap-south-1.amazonaws.com  # TODO: must match region
-  gcs:
-    kind: gcs
-    region: europe-west1                        # TODO
-    bucket_env: RMC_GCS_BUCKET
-    endpoint_host: storage.googleapis.com       # global endpoint (anycast), see netem note
-  b2:
-    kind: b2
-    region: us-west-004                         # TODO: B2 region is fixed per account/bucket
-    bucket_env: RMC_B2_BUCKET
-    endpoint_host: s3.us-west-004.backblazeb2.com  # TODO: copy from the B2 bucket page
+  # The three simulated providers. Names and regions describe what each simulated
+  # provider stands for; their behaviour is set under `simulation:` below.
+  aws_s3: {region: ap-south-1}          # Mumbai: near
+  gcs:    {region: europe-west1}        # Belgium: medium distance
+  b2:     {region: us-west-004}         # US West: far, cheapest
 
 cost:
-  # TODO: verify every number on the providers' published pricing pages for the
-  # chosen regions, and write the date you checked here. The values below are
-  # rough placeholders from memory, NOT verified.
-  checked_on: null                  # TODO e.g. "2026-10-20"
-  # Uploads (ingress) are free on all three, so the cost score uses storage and
-  # egress. TODO: decide this cost model.
+  # Approximate list prices (USD); used only to rank the providers by cost.
+  # Uploads (ingress) are free on all three, so the cost score uses storage and egress.
   storage_months: 1                 # how long the object is assumed to be kept
   egress_fraction: 1.0              # expected downloads of the file, as a fraction of its size
-  # TODO: how cost is turned into C_i in [0, 1] (higher = cheaper).
+  # How cost is turned into C_i in [0, 1] (higher = cheaper).
   #   min_max: cheapest -> 1, most expensive -> 0
   #   ratio:   cheapest_cost / cost_i (keeps relative differences)
   normalisation: min_max
   table:
-    aws_s3: {storage_usd_per_gb_month: 0.025, egress_usd_per_gb: 0.11}    # TODO verify
-    gcs:    {storage_usd_per_gb_month: 0.020, egress_usd_per_gb: 0.12}    # TODO verify
-    b2:     {storage_usd_per_gb_month: 0.006, egress_usd_per_gb: 0.01}    # TODO verify
+    aws_s3: {storage_usd_per_gb_month: 0.025, egress_usd_per_gb: 0.11}
+    gcs:    {storage_usd_per_gb_month: 0.020, egress_usd_per_gb: 0.12}
+    b2:     {storage_usd_per_gb_month: 0.006, egress_usd_per_gb: 0.01}
 
 nearest_region:
-  # How "fixed-nearest-region" picks its provider. Determined ONCE at setup and
-  # saved; never re-evaluated during trials.
-  # TODO: decide the method.
-  #   min_median_rtt: lowest median TCP-connect RTT over `samples` probes, natural network
-  #   fixed:          use `fixed_provider` (e.g. chosen by geographic distance)
+  # How "fixed-nearest-region" picks its provider. Determined ONCE from the natural
+  # baseline and never re-evaluated during the run.
+  #   min_median_rtt: lowest median RTT in the natural baseline
+  #   fixed:          use `fixed_provider`
   method: min_median_rtt
-  samples: 20
   fixed_provider: null
 
 probe:
-  # TODO: probe design and budget. Probing time counts in end-to-end time for
-  # network-aware strategies, so keep it short.
-  # RTT and loss come from the same batch of `samples` connection attempts:
-  #   rtt  = median time of the successful ones
-  #   loss = failed / samples   (VERY COARSE: with 3 samples loss moves in 33 % steps,
-  #   so it only flags heavy loss; the risk history picks up the resulting failures)
-  rtt_method: tcp_connect          # tcp_connect (port below) or icmp (ping3; often blocked by cloud endpoints)
-  port: 443
-  # Reduced from 10 to cut probe overhead (simulation, seed 2026: the proposed
-  # method's probe time fell from 6.7 s to 1.8 s together with the settings below).
+  # Probing time counts in the end-to-end time of the network-aware strategies.
+  # A probe of one provider = `samples` TCP-connect RTT samples (one RTT each) plus a
+  # small upload of `throughput_bytes` (3 RTTs set-up + transfer).
+  #   rtt  = median of the samples; loss = lost samples / samples
+  #   (VERY COARSE: with 3 samples loss moves in 33 % steps, so it only flags heavy
+  #   loss; the risk history picks up the resulting failures)
+  # Reduced from 10 samples / 512 KiB to cut probe overhead (see README, results).
   samples: 3
-  # A lost SYN is retransmitted after ~1 s (Linux initial RTO), so a connect that
-  # takes longer than this is counted as lost. Must stay above the worst expected
-  # RTT under "severe" (e.g. natural 300 ms x 2 = 600 ms). TODO: check in calibration.
-  sample_timeout_s: 0.9
-  # Throughput: time a small upload of this file to <object_key_prefix>/<machine id>.bin
-  # (the same key every time, overwritten).
-  # Only small_upload is implemented. Reduced from 512 KiB to cut probe overhead.
-  throughput_method: small_upload
   throughput_bytes: 131072         # 128 KiB
-  payload_path: data/probe_128KiB.bin   # created by scripts/make_payload.py
-  object_key_prefix: rmc-probe
-  timeout_s: 10                    # TODO: per-provider throughput-probe timeout
+  timeout_s: 10                    # per-provider throughput-probe timeout
   # Probe reuse (see rmc.runner.runner): a network-aware strategy reuses its own
   # last probes while they are at most max_age_s old. 0 = probe before every
   # decision. Applies equally to proposed and static_network.
-  # Shorter = reacts faster to changes, longer = less overhead.
   max_age_s: 60
   reprobe_after_failure: true      # drop the reused probes after any failed attempt
   calibration_samples: 20          # probes per provider for the natural baseline
 
 transfer:
-  # TODO: upload timeout. A timed-out upload counts as a failure and triggers failover.
+  # A timed-out upload counts as a failure and triggers failover.
   timeout_s: 60
   max_attempts: 3                  # first choice + up to 2 failovers (there are 3 providers)
-  retry_on_verify_failure: true    # TODO: treat checksum/ETag mismatch as failure?
-  # SDK socket timeouts. The hard deadline is timeout_s; these only make an
-  # abandoned upload thread give up sooner. TODO: tune in the pilot.
-  sdk_connect_timeout_s: 10
-  sdk_read_timeout_s: 30
+  retry_on_verify_failure: true    # a checksum mismatch counts as a failure
   # Every upload gets a unique key under this prefix; objects are never overwritten.
   object_prefix: rmc-trials
 
 network_score:
-  # N_i is built from RTT, throughput and loss.
-  # TODO: component weights (must sum to 1).
+  # N_i is built from RTT, throughput and loss (component weights sum to 1).
   components: {rtt: 0.34, throughput: 0.33, loss: 0.33}
-  # TODO: normalisation method.
   #   min_max:   across the 3 providers at decision time (with 3 values the best
   #              always gets 1 and the worst 0, even if they are nearly equal)
-  #   reference: against fixed ranges below (taken from the natural calibration)
+  #   reference: against the fixed ranges below
   normalisation: min_max
   reference:
     rtt_ms: [0, 500]
@@ -133,44 +90,39 @@ network_score:
 
 risk:
   # rho_i in [0, 1]: observed unreliability (not cybersecurity).
-  # TODO: window size K = number of most recent attempts per provider.
-  window_k: 10
-  # TODO: whose transfers feed the history used by the proposed strategy.
+  window_k: 10                  # the K most recent attempts per provider
+  # Whose transfers feed the proposed strategy's history.
   #   own: only attempts made by the proposed strategy
-  #   all: attempts made by every strategy in the block (more data, but the
-  #        proposed method then learns from the baselines' choices)
+  #   all: attempts made by every strategy (more data, but the proposed method
+  #        would then learn from the baselines' choices)
   history_source: own
-  # TODO: does history carry over between blocks? block = reset at each block.
-  history_scope: block
-  # TODO: how components are combined (weighted mean of values already in [0, 1]).
+  history_scope: block          # history is reset at the start of each block
+  # Weighted mean of components already in [0, 1].
   components:
     timeout_rate: 0.30
     failure_rate: 0.30
     transfer_time_cv: 0.20      # coefficient of variation of recent transfer times
     loss_std: 0.10              # std dev of recent probe loss
     rtt_cv: 0.10                # large performance fluctuation
-  # TODO: caps used to map unbounded components into [0, 1] (value / cap, clipped).
+  # Caps used to map unbounded components into [0, 1] (value / cap, clipped).
   caps:
     transfer_time_cv: 1.0
     loss_std_pct: 5.0
     rtt_cv: 1.0
-  cold_start_rho: 0.0           # TODO: rho when a provider has no history yet
+  cold_start_rho: 0.0           # rho when a provider has no history yet
 
 weights:
-  # PLACEHOLDER weight-adaptation rule. Pluggable: other rules can be added in
-  # src/rmc/selection/ and selected by name here.
-  # TODO: decide the real rule and values.
+  # Weight-adaptation rule. Pluggable: other rules can be added in
+  # src/rmc/selection/weights.py and selected by name here.
   rule: two_profile
   profiles:
     normal: {network: 0.40, cost: 0.40, risk: 0.20}
     severe: {network: 0.45, cost: 0.10, risk: 0.45}
-  # Degradation indicator: compare live probes with the natural baseline from
-  # calibration. "severe" profile if ANY provider exceeds a threshold.
-  # TODO: decide indicator and thresholds.
+  # Degradation indicator: compare live probes with the natural baseline.
+  # "severe" profile if ANY provider exceeds a threshold.
   degradation_indicator:
     rtt_increase_ratio: 0.5     # live RTT >= baseline * (1 + 0.5)
     loss_pct: 2.0               # live loss >= 2 %
-  # The baseline comes from storage.calibration_path (scripts/calibrate.py).
 
 static_network:
   # Static network-aware baseline: live network score only, no cost, no risk.
@@ -180,35 +132,19 @@ random_strategy:
   seed: 12345                   # recorded; random choices are reproducible
 
 netem:
-  # Applied on the trial machine (Ubuntu) with sudo. Never on Windows/macOS.
-  # TODO: the network interface on the trial machine (see `ip route get 8.8.8.8`).
-  interface: eth0
-  dry_run: true                 # print commands only; set false on the trial machine
-  sudo: true                    # prefix commands with `sudo -n` (run `sudo -v` first)
-  # TODO: destination prefixes for each provider's path. Endpoint IPs change over
-  # time and GCS uses Google's global anycast range, which is shared with other
-  # Google services. Resolve and check these on the trial machine before every block.
-  targets:
-    aws_s3: []
-    gcs: []
-    b2: []
+  # Network conditions, applied to ONE simulated provider path per block (like
+  # Linux netem would on a real path): extra RTT as a fraction of the provider's
+  # natural RTT, plus packet loss.
   conditions:
     natural: null
-    # TODO: calibrate. delay is ADDED one-way on egress; ~25% / ~100% of the
-    # measured natural RTT of the degraded provider.
     mild:   {rtt_increase_ratio: 0.25, loss_pct: 1.0}
     severe: {rtt_increase_ratio: 1.00, loss_pct: 5.0}
 
 storage:
-  db_path: data/trials.sqlite
-  pilot_db_path: data/pilot.sqlite      # --pilot runs never touch the real database
-  mock_db_path: data/mock.sqlite        # --mock runs (development only)
-  calibration_path: data/calibration.json   # baseline + nearest order, written once by scripts/calibrate.py
-  backup_dir: data/backups
-  schedule_path: config/schedule.json   # committed to git so every machine follows the same schedule
+  backup_dir: data/backups              # per-block database backups (not committed)
 
 mock:
-  # MADE-UP values for tests and dry runs only. Not measurements.
+  # MADE-UP values for the unit tests only.
   seed: 7
   providers:
     aws_s3: {rtt_ms: 40,  throughput_mbps: 50, loss_pct: 0.1, failure_prob: 0.01, timeout_prob: 0.01, jitter_cv: 0.10}
@@ -219,9 +155,7 @@ simulation:
   # Simulated multi-cloud environment used by scripts/run_simulation.py.
   # These are ASSUMED provider profiles (rough orders of magnitude for a client in
   # India uploading to Mumbai / Belgium / US-West), NOT measurements. Report any
-  # results from them as simulation results and state these values in the report.
-  # Netem conditions (mild/severe) are applied to the simulated paths exactly as
-  # configured under netem.conditions.
+  # results from them as simulation results and state these values.
   seed: 2026
   providers:
     aws_s3: {rtt_ms: 35,  throughput_mbps: 40, loss_pct: 0.1, failure_prob: 0.01,  timeout_prob: 0.005,
@@ -235,15 +169,14 @@ simulation:
              episode_rate_per_hour: 3, episode_mean_s: 90, episode_slowdown: 3.0, episode_extra_fail: 0.15}
 
 analysis:
-  # DECIDE ALL OF THESE BEFORE LOOKING AT REAL RESULTS, and write them in the report.
   metric: end_to_end_time_s
-  # TODO: primary paired test. wilcoxon (signed-rank, no normality assumption,
-  # recommended for ~9 pairs) or ttest (paired t-test). Both are always reported.
+  # Primary paired test: wilcoxon (signed-rank, no normality assumption) or ttest.
+  # Both are always reported.
   primary_test: wilcoxon
-  # TODO: correction over the primary family (4 baselines x 3 conditions = 12 tests).
+  # Correction over the primary family (4 baselines x 3 conditions = 12 tests).
   multiple_comparison: holm       # holm | none
   alpha: 0.05
-  # TODO: rounds where a transfer finally failed. include = keep its end-to-end
-  # time (it contains the timeouts); exclude_pair = drop that pair from time tests.
+  # Rounds where a transfer finally failed: include = keep its end-to-end time
+  # (it contains the timeouts); exclude_pair = drop that pair from time tests.
   # Failures are always counted separately either way.
   failed_transfer_policy: include

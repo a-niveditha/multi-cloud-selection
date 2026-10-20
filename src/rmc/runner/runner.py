@@ -33,7 +33,7 @@ class RunnerRefused(Exception):
 
 
 def preflight(cfg: dict, schedule: dict, block_id: str, db, ctx: RunContext, setup: dict, *,
-              git_dirty: bool | None, allow_dirty: bool, netem_dry_run: bool) -> None:
+              git_dirty: bool | None, allow_dirty: bool) -> None:
     """git_dirty: True/False, or None if this is not a git repository."""
     block = get_block(schedule, block_id)
     problems = validate_config(cfg)
@@ -53,8 +53,6 @@ def preflight(cfg: dict, schedule: dict, block_id: str, db, ctx: RunContext, set
     missing = set(cfg["providers"]) - set(setup["baseline"])
     if missing:
         raise RunnerRefused(f"calibration baseline is missing providers {sorted(missing)}")
-    if block["condition"] != "natural" and netem_dry_run and not ctx.is_pilot:
-        raise RunnerRefused("netem.dry_run is true: a degraded block would run WITHOUT degradation")
     try:  # one database = one schedule
         db.set_meta("schedule_seed", str(schedule["seed"]))
         db.set_meta("schedule_created_at", schedule["created_at"])
@@ -81,19 +79,18 @@ class BlockRunner:
         b = self.block
         natural = b["condition"] == "natural"
         if natural and self.netem.has_rules():
-            raise RunnerRefused("netem rules are present before a NATURAL block; "
-                                "clear them (scripts/netem_ctl.py clear), check, and rerun")
+            raise RunnerRefused("a degradation is still applied before a NATURAL block")
         summary = {"block_id": self.block_id, "rounds_run": 0, "rounds_skipped": 0, "transfers": 0}
         finished = False
         try:
             self.netem.clear()
             if self.netem.has_rules():
-                raise RunnerRefused("netem rules are still present after clearing")
+                raise RunnerRefused("the degradation is still applied after clearing")
             if not natural:
                 c = self.cfg["netem"]["conditions"][b["condition"]]
                 self.netem.apply(b["degraded_provider"], c["rtt_increase_ratio"], c["loss_pct"])
-                if not getattr(self.netem, "dry_run", False) and not self.netem.has_rules():
-                    raise RunnerRefused("netem apply did not leave a netem qdisc on the interface")
+                if not self.netem.has_rules():
+                    raise RunnerRefused("applying the degradation had no effect")
                 self.log(f"{self.block_id}: {b['condition']} applied to {b['degraded_provider']}")
 
             self._rebuild_history()

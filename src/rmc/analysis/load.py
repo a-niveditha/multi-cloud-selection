@@ -36,7 +36,7 @@ def load_transfers(db_path: str | Path, include_pilot: bool = False) -> pd.DataF
 
 
 def load_many(db_paths: list[str | Path], include_pilot: bool = False) -> pd.DataFrame:
-    """Combine the databases of several trial machines (each block runs on one machine).
+    """Combine several databases (each block must appear in only one of them).
     Refuses if the same block appears in more than one database (a block run twice)."""
     frames = []
     for p in db_paths:
