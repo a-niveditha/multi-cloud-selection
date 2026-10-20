@@ -1,0 +1,33 @@
+{
+  "created_at": "2026-10-20T20:20:19+00:00",
+  "machine_id": "simulation",
+  "baseline": {
+    "aws_s3": {
+      "rtt_ms": 34.38869629502843,
+      "loss_pct": 0.0,
+      "throughput_mbps": 30.94844797858311,
+      "n_ok": 20,
+      "n": 20
+    },
+    "gcs": {
+      "rtt_ms": 133.29902803387213,
+      "loss_pct": 0.0,
+      "throughput_mbps": 29.277600745549226,
+      "n_ok": 20,
+      "n": 20
+    },
+    "b2": {
+      "rtt_ms": 247.426089905394,
+      "loss_pct": 0.0,
+      "throughput_mbps": 20.535898864606835,
+      "n_ok": 20,
+      "n": 20
+    }
+  },
+  "nearest_method": "min_median_rtt",
+  "nearest_order": [
+    "aws_s3",
+    "gcs",
+    "b2"
+  ]
+}

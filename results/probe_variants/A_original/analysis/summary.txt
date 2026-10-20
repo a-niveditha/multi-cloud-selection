@@ -1,8 +1,8 @@
 DATA SOURCE: SIMULATION. Providers, network conditions and failures are simulated (config.yaml `simulation:` profiles); these are not real cloud measurements.
 Config overrides: probe.samples=10, probe.throughput_bytes=524288, probe.max_age_s=0
 
-Analysis of ['E:\\Codes\\cn_project\\results\\probe_variants\\A_original\\simulation.sqlite']  (2026-10-20 18:39 UTC)
-Transfers: 540 (450 measured, 90 warm-up); blocks: 9; machines: ['simulation']; code versions: ['d04694e7fcb1']; config hashes: ['ecbf68f88fa4']
+Analysis of ['E:\\Codes\\cn_project\\results\\probe_variants\\A_original\\simulation.sqlite']  (2026-10-20 20:20 UTC)
+Transfers: 540 (450 measured, 90 warm-up); blocks: 9; machines: ['simulation']; code versions: ['460295bbb8e0']; config hashes: ['ecbf68f88fa4']
 Metric: end_to_end_time_s. diff = baseline - proposed (positive = proposed faster). Two-sided tests.
 Primary test: wilcoxon, correction: holm, alpha 0.05, failed transfers: include.
 Exploratory subgroup rows are NOT corrected for multiple comparisons.

@@ -1,0 +1,235 @@
+{
+  "experiment": {
+    "payload_path": "data/payload_10MB.bin",
+    "payload_size_bytes": 10485760,
+    "payload_seed": 2026,
+    "rounds_per_condition": 30,
+    "warmup_rounds_per_block": 2,
+    "cooldown_s": 5,
+    "strategies": [
+      "proposed",
+      "static_network",
+      "cost_only",
+      "nearest",
+      "random"
+    ],
+    "conditions": [
+      "natural",
+      "mild",
+      "severe"
+    ]
+  },
+  "providers": {
+    "aws_s3": {
+      "region": "ap-south-1"
+    },
+    "gcs": {
+      "region": "europe-west1"
+    },
+    "b2": {
+      "region": "us-west-004"
+    }
+  },
+  "cost": {
+    "storage_months": 1,
+    "egress_fraction": 1.0,
+    "normalisation": "min_max",
+    "table": {
+      "aws_s3": {
+        "storage_usd_per_gb_month": 0.025,
+        "egress_usd_per_gb": 0.11
+      },
+      "gcs": {
+        "storage_usd_per_gb_month": 0.02,
+        "egress_usd_per_gb": 0.12
+      },
+      "b2": {
+        "storage_usd_per_gb_month": 0.006,
+        "egress_usd_per_gb": 0.01
+      }
+    }
+  },
+  "nearest_region": {
+    "method": "min_median_rtt",
+    "fixed_provider": null
+  },
+  "probe": {
+    "samples": 3,
+    "throughput_bytes": 131072,
+    "timeout_s": 10,
+    "max_age_s": 60,
+    "reprobe_after_failure": true,
+    "calibration_samples": 20
+  },
+  "transfer": {
+    "timeout_s": 60,
+    "max_attempts": 3,
+    "retry_on_verify_failure": true,
+    "object_prefix": "rmc-trials"
+  },
+  "network_score": {
+    "components": {
+      "rtt": 0.34,
+      "throughput": 0.33,
+      "loss": 0.33
+    },
+    "normalisation": "min_max",
+    "reference": {
+      "rtt_ms": [
+        0,
+        500
+      ],
+      "throughput_mbps": [
+        0,
+        100
+      ],
+      "loss_pct": [
+        0,
+        10
+      ]
+    }
+  },
+  "risk": {
+    "window_k": 10,
+    "history_source": "own",
+    "history_scope": "block",
+    "components": {
+      "timeout_rate": 0.3,
+      "failure_rate": 0.3,
+      "transfer_time_cv": 0.2,
+      "loss_std": 0.1,
+      "rtt_cv": 0.1
+    },
+    "caps": {
+      "transfer_time_cv": 1.0,
+      "loss_std_pct": 5.0,
+      "rtt_cv": 1.0
+    },
+    "cold_start_rho": 0.0
+  },
+  "weights": {
+    "rule": "two_profile",
+    "profiles": {
+      "normal": {
+        "network": 0.4,
+        "cost": 0.4,
+        "risk": 0.2
+      },
+      "severe": {
+        "network": 0.45,
+        "cost": 0.1,
+        "risk": 0.45
+      }
+    },
+    "degradation_indicator": {
+      "rtt_increase_ratio": 0.5,
+      "loss_pct": 2.0
+    }
+  },
+  "static_network": {
+    "weights": {
+      "network": 1.0,
+      "cost": 0.0,
+      "risk": 0.0
+    }
+  },
+  "random_strategy": {
+    "seed": 12345
+  },
+  "netem": {
+    "conditions": {
+      "natural": null,
+      "mild": {
+        "rtt_increase_ratio": 0.25,
+        "loss_pct": 1.0
+      },
+      "severe": {
+        "rtt_increase_ratio": 1.0,
+        "loss_pct": 5.0
+      }
+    }
+  },
+  "storage": {
+    "backup_dir": "data/backups"
+  },
+  "mock": {
+    "seed": 7,
+    "providers": {
+      "aws_s3": {
+        "rtt_ms": 40,
+        "throughput_mbps": 50,
+        "loss_pct": 0.1,
+        "failure_prob": 0.01,
+        "timeout_prob": 0.01,
+        "jitter_cv": 0.1
+      },
+      "gcs": {
+        "rtt_ms": 150,
+        "throughput_mbps": 40,
+        "loss_pct": 0.1,
+        "failure_prob": 0.01,
+        "timeout_prob": 0.01,
+        "jitter_cv": 0.1
+      },
+      "b2": {
+        "rtt_ms": 250,
+        "throughput_mbps": 30,
+        "loss_pct": 0.2,
+        "failure_prob": 0.02,
+        "timeout_prob": 0.01,
+        "jitter_cv": 0.15
+      }
+    }
+  },
+  "simulation": {
+    "seed": 2026,
+    "providers": {
+      "aws_s3": {
+        "rtt_ms": 35,
+        "throughput_mbps": 40,
+        "loss_pct": 0.1,
+        "failure_prob": 0.01,
+        "timeout_prob": 0.005,
+        "jitter_cv": 0.2,
+        "loss_fail_per_pct": 0.02,
+        "episode_rate_per_hour": 3,
+        "episode_mean_s": 90,
+        "episode_slowdown": 3.0,
+        "episode_extra_fail": 0.15
+      },
+      "gcs": {
+        "rtt_ms": 140,
+        "throughput_mbps": 30,
+        "loss_pct": 0.2,
+        "failure_prob": 0.01,
+        "timeout_prob": 0.005,
+        "jitter_cv": 0.25,
+        "loss_fail_per_pct": 0.02,
+        "episode_rate_per_hour": 3,
+        "episode_mean_s": 90,
+        "episode_slowdown": 3.0,
+        "episode_extra_fail": 0.15
+      },
+      "b2": {
+        "rtt_ms": 240,
+        "throughput_mbps": 20,
+        "loss_pct": 0.3,
+        "failure_prob": 0.02,
+        "timeout_prob": 0.01,
+        "jitter_cv": 0.3,
+        "loss_fail_per_pct": 0.02,
+        "episode_rate_per_hour": 3,
+        "episode_mean_s": 90,
+        "episode_slowdown": 3.0,
+        "episode_extra_fail": 0.15
+      }
+    }
+  },
+  "analysis": {
+    "metric": "end_to_end_time_s",
+    "primary_test": "wilcoxon",
+    "multiple_comparison": "holm",
+    "alpha": 0.05,
+    "failed_transfer_policy": "include"
+  }
+}
