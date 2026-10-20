@@ -19,8 +19,9 @@ def _git(*args: str) -> str:
 
 
 def git_is_dirty() -> bool:
-    """True if there are uncommitted changes to tracked or untracked (non-ignored) files."""
-    return bool(_git("status", "--porcelain"))
+    """True if there are uncommitted changes to tracked or untracked (non-ignored) files,
+    ignoring results/ (simulation output is not code)."""
+    return bool(_git("status", "--porcelain", "--", ".", ":(exclude)results"))
 
 
 def git_dirty_or_none() -> bool | None:

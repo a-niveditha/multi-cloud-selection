@@ -30,7 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import analyse  # noqa: E402
 from make_payload import make  # noqa: E402
 from rmc.clock import SimClock  # noqa: E402
-from rmc.config import REPO_ROOT, config_hash, load_config  # noqa: E402
+from rmc.config import REPO_ROOT, load_config  # noqa: E402
 from rmc.db import Database  # noqa: E402
 from rmc.models import LocalFile, RunContext  # noqa: E402
 from rmc.netem.netem import MockNetem  # noqa: E402
@@ -77,7 +77,6 @@ def main() -> None:
             sys.exit(f"{out} already exists; use --overwrite, another --name or another --seed")
         shutil.rmtree(out)
     out.mkdir(parents=True)
-    cfg["storage"]["backup_dir"] = str(REPO_ROOT / "data" / "backups" / name)
 
     exp = cfg["experiment"]
     make(REPO_ROOT / exp["payload_path"], exp["payload_size_bytes"], exp["payload_seed"])
@@ -89,6 +88,8 @@ def main() -> None:
     netem = MockNetem(providers)
     setup = build_setup(cfg, calibrate(prober, list(providers), cfg["probe"]["calibration_samples"]), "simulation")
     schedule = generate_schedule(cfg, args.seed, code_version())
+    cfg_hash = schedule["config_hash"]   # before the run-specific backup path is set below
+    cfg["storage"]["backup_dir"] = str(REPO_ROOT / "data" / "backups" / name)
     save_schedule(schedule, out / "schedule.json")
 
     print(note)
@@ -102,7 +103,7 @@ def main() -> None:
     try:
         for b in schedule["blocks"]:
             ctx = RunContext(machine_id="simulation", code_version=code_version(), block_id=b["block_id"],
-                             config_hash=config_hash(cfg), is_pilot=True)
+                             config_hash=cfg_hash, is_pilot=True)
             preflight(cfg, schedule, b["block_id"], db, ctx, setup,
                       git_dirty=False, allow_dirty=True)
             s = BlockRunner(cfg, schedule, b["block_id"], db, ctx, providers, prober, netem, setup,
